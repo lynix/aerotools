@@ -39,6 +39,8 @@
 #define DEV_FW_OFFS			505
 #define	DEV_NAME_LEN		8
 #define DEV_NAME_OFFS		122
+#define DEV_SERIAL_LEN		2
+#define DEV_SERIAL_OFFS		520
 #define FAN_NUM				4
 #define FAN_NAME_LEN		10
 #define FAN_NAME_OFFS		0
@@ -53,7 +55,6 @@
 #define TEMP_VAL_OFFS		460
 #define TEMP_NAN			0x7d0
 
-
 struct usb_device *dev_find(void);
 struct usb_dev_handle *dev_init(struct usb_device *dev);
 
@@ -61,11 +62,11 @@ char *get_name(char *buffer);
 char *get_fw(char *buffer);
 char *get_product(char *buffer);
 char *get_fan_name(char n, char *buffer);
-int get_fan_rpm(char n, char *buffer);
+ushort get_fan_rpm(char n, char *buffer);
 char get_fan_duty(char n, char *buffer);
 char *get_temp_name(char n, char *buffer);
 double get_temp_value(char n, char *buffer);
-int get_serial(char *buffer);
+ushort get_serial(char *buffer);
 
 /* TODO: remove this */
 /*void debug_buffer ( char *buffer, int len );*/

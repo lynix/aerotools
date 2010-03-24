@@ -1,0 +1,12 @@
+ - write README
+
+ - create get_int(), get_byte() aso. and use them to avoid
+   always the same scheme in get_fan_rpm(), get_temp_value(), etc.
+
+ - put device-communication related methods in separate file
+
+ - (evtl.) auto-shorten sensor/fan names by seeking from right
+   border to left, hopping over ' ', then setting '\0' to cut
+
+ - write daemon (use notes) for conky-connection through hddtemp
+   (the cool stuff ;) )

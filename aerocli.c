@@ -48,19 +48,22 @@ struct usb_device *dev_find(void)
 struct usb_dev_handle *dev_init(struct usb_device *dev)
 {
 	struct usb_dev_handle *handle;
+	int v;
 
 	if ((handle = usb_open(dev)) == NULL) {
 	    err_die("couldn't open device");
 	}
-	if (usb_detach_kernel_driver_np(handle, 0) < 0) {
-	 	err_msg("couldn't detach kernel driver");
+	if ((v = usb_detach_kernel_driver_np(handle, 0)) < 0) {
+		if (v != -61) {
+			err_msg("couldn't detach kernel driver (%d)", v);
+		} /* -61 means no kernel driver present, nothing to detach */
 	}
-	if (usb_set_configuration(handle, USB_CONF) < 0) {
-	   	err_msg("unable to set configuration");
+	if ((v = usb_set_configuration(handle, USB_CONF)) < 0) {
+	   	err_msg("unable to set configuration (%d)", v);
 	}
-	if (usb_claim_interface(handle, 0) < 0) {
+	if ((v = usb_claim_interface(handle, 0)) < 0) {
 		usb_close(handle);
-	   	err_die("couldn't claim interface");
+	   	err_die("couldn't claim interface (%d)", v);
 	}
 
 	return handle;
@@ -109,21 +112,27 @@ char *get_fan_name(char n, char *buffer)
 	return buffer + FAN_NAME_OFFS + (n * (FAN_NAME_LEN+1));
 }
 
-int get_fan_rpm(char n, char *buffer)
+ushort get_fan_rpm(char n, char *buffer)
 {
-	return ((int)buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN)] << 8) + 256 + (int)buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN) + 1];
+	unsigned char a, b;
+	unsigned short c;
+
+	a = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN)];
+	b = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN) + 1];
+	c = (a << 8) + b;
+
+	return c;
 }
 
 char get_fan_duty(char n, char *buffer)
 {
-	int t;
-	char r;
+	unsigned char t;
+	unsigned short s;
 
-	t = buffer[FAN_PWR_OFFS + (n * FAN_PWR_LEN)];
-	t = t&0xFF;
-	r = (t * 100) >> 8;
+	t = *(buffer + FAN_PWR_OFFS + (n * FAN_PWR_LEN));
+	s = (t * 100) >> 8;
 
-	return r;
+	return (char)s;
 }
 
 char *get_temp_name(char n, char *buffer)
@@ -135,13 +144,27 @@ char *get_temp_name(char n, char *buffer)
 
 double get_temp_value(char n, char *buffer)
 {
-	return (double)((buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN)] << 8) + buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN) + 1]) / 10;
+	unsigned char a, b;
+	unsigned short c;
+
+	a = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN)];
+	b = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN) + 1];
+	c = (a << 8) + b;
+
+	return (double)c / 10;
 }
 
-int get_serial(char *buffer)
+ushort get_serial(char *buffer)
 {
-	//TODO: implement
-	return 0;
+	//TODO: refactor: create get_int(), get_byte(), etc and use them here
+	unsigned char a, b;
+	unsigned short c;
+
+	a = buffer[DEV_SERIAL_OFFS];
+	b = buffer[DEV_SERIAL_OFFS + 1];
+	c = (a << 8) + b;
+
+	return c;
 }
 
 int main(int argc, char *argv[])
@@ -177,12 +200,12 @@ int main(int argc, char *argv[])
     	print_heading("Device data");
     	printf("Name:      %s\n", get_name(buffer));
     	printf("Firmware:  %s\n", get_fw(buffer));
-    	printf("Serial:    %d\n", get_serial(buffer));
+    	printf("Serial:    %u\n", get_serial(buffer));
     	printf("Produced:  %s\n", get_product(buffer));
     }
     print_heading("Fans");
     for (i = 0; i < FAN_NUM; i++) {
-    	printf("%s: %u%% @ %d rpm\n", get_fan_name(i, buffer), get_fan_duty(i, buffer), get_fan_rpm(i, buffer));
+    	printf("%s: %u%% @ %u rpm\n", get_fan_name(i, buffer), get_fan_duty(i, buffer), get_fan_rpm(i, buffer));
     }
     print_heading("Temperatures");
     for (i = 0; i < TEMP_NUM; i++) {
