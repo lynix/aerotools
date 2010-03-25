@@ -18,55 +18,126 @@
 
 #include "aerocli.h"
 
-
-struct usb_device *dev_find(void)
+void err_die(char *msg, ...)
 {
-	struct usb_bus *bus;
-	struct usb_device *dev, *ret;
+	va_list argpointer;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	va_start(argpointer, msg);
+	fprintf(stderr, "%s: ", PROGN);
+	vfprintf(stderr, msg, argpointer);
+	fprintf(stderr, "\n");
+	fflush(stderr);
 
-	ret = NULL;
+	exit(EXIT_FAILURE);
+}
 
-	for (bus = usb_busses; bus; bus = bus->next) {
-		for (dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == USB_VID) &&  (dev->descriptor.idProduct == USB_PID)) {
-				ret = dev;
-			}
+void err_msg(char *msg, ...)
+{
+	va_list argpointer;
+
+	va_start(argpointer, msg);
+	fprintf(stderr, "%s: ", PROGN);
+	vfprintf(stderr, msg, argpointer);
+	fprintf(stderr, "\n");
+	fflush(stderr);
+
+	return;
+}
+
+void print_heading(char *text)
+{
+	printf(":: %s\n", text);
+
+	return;
+}
+
+void init_opts(struct options *opts)
+{
+	opts->all = 0;
+	opts->dump = 0;
+	opts->fan_rpm = 0;
+	opts->fan_duty = 0;
+	opts->temp = 0;
+
+	return;
+}
+
+void parse_cmdline(struct options *opts, int argc, char *argv[])
+{
+	int i, n;
+
+	for (i = 1; i < argc; i++) {
+		if (*(argv[i]) != '-') {
+			continue;
+		}
+		switch (*(argv[i]+1)) {
+			case 'h':
+				print_help();
+				exit(EXIT_SUCCESS);
+				break;
+			case 'a':
+				opts->all = 1;
+				break;
+			case 's':
+				n = atoi(argv[i] + 3);
+				if (n < 1 || n > TEMP_NUM) {
+					err_die("unvalid sensor number");
+				}
+				opts->temp = n;
+				break;
+			case 'f':
+				n = atoi(argv[i] + 4);
+				if (n < 1 || n > FAN_NUM) {
+					err_die("unvalid fan number");
+				}
+				switch (*(argv[i]+2)) {
+					case 'r':
+						opts->fan_rpm = n;
+						break;
+					case 'd':
+						opts->fan_duty = n;
+						break;
+					default:
+						err_die("invalid fan property");
+						break;
+				}
+				break;
+			case 'd':
+				opts->dump = 1;
+				opts->dump_fn = argv[i] + 3;
+				break;
+			default:
+				err_die("invalid arguments. Try -h for help.");
+				break;
 		}
 	}
 
-	if (ret == NULL) {
-		err_die("couldn't find any aquaero device");
-	}
-
-	return ret;
+	return;
 }
 
-struct usb_dev_handle *dev_init(struct usb_device *dev)
+void print_help()
 {
-	struct usb_dev_handle *handle;
-	int v;
+	printf("%s  Copyright (c) 2010  lynix <lynix47@gmail.com>\n\n", PROGN);
 
-	if ((handle = usb_open(dev)) == NULL) {
-	    err_die("couldn't open device");
-	}
-	if ((v = usb_detach_kernel_driver_np(handle, 0)) < 0) {
-		if (v != -61) {
-			err_msg("couldn't detach kernel driver (%d)", v);
-		} /* -61 means no kernel driver present, nothing to detach */
-	}
-	if ((v = usb_set_configuration(handle, USB_CONF)) < 0) {
-	   	err_msg("unable to set configuration (%d)", v);
-	}
-	if ((v = usb_claim_interface(handle, 0)) < 0) {
-		usb_close(handle);
-	   	err_die("couldn't claim interface (%d)", v);
-	}
+	printf("This program comes with ABSOLUTELY NO WARRANTY, use at\n");
+	printf("own risk. This is free software, and you are welcome to\n");
+	printf("redistribute it under the terms of the GNU General\n");
+	printf("Public License as published by the Free Software\n");
+	printf("Foundation, either version 3 of the License, or (at your\n");
+	printf("option) any later version.\n\n");
 
-	return handle;
+	printf("Usage:  %s [OPTIONS]\n\n", PROGN);
+
+	printf("Options:\n");
+	printf("  -a         print all data read from the device\n");
+	printf("  -fr N      print rpm of fan N (1<=N<=4)\n");
+	printf("  -fd N      print duty of fan N (1<=N<=4)\n");
+	printf("  -s  N      print temperature on sensor N (1<=N<=6)\n");
+	printf("  -d  FILE   dump the raw data-buffer to FILE\n");
+	printf("  -h         display this usage and license information\n");
+
+	printf("\n");
+	printf("This version of %s was built on %s %s.\n", PROGN, __DATE__, __TIME__);
 }
 
 void dump_data(char *file, char *buffer)
@@ -85,108 +156,32 @@ void dump_data(char *file, char *buffer)
 	return;
 }
 
-char *get_name(char *buffer)
-{
-	buffer[DEV_NAME_OFFS + DEV_NAME_LEN] = '\0';
-
-	return buffer + DEV_NAME_OFFS;
-}
-
-char *get_fw(char *buffer)
-{
-	buffer[DEV_FW_OFFS + DEV_FW_LEN] = '\0';
-
-	return buffer + DEV_FW_OFFS;
-}
-
-char *get_product(char *buffer)
-{
-	//TODO: implement
-	return "not implemented yet";
-}
-
-char *get_fan_name(char n, char *buffer)
-{
-	buffer[FAN_NAME_OFFS + (n * (FAN_NAME_LEN+1)) + FAN_NAME_LEN] = '\0';
-
-	return buffer + FAN_NAME_OFFS + (n * (FAN_NAME_LEN+1));
-}
-
-ushort get_fan_rpm(char n, char *buffer)
-{
-	unsigned char a, b;
-	unsigned short c;
-
-	a = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN)];
-	b = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN) + 1];
-	c = (a << 8) + b;
-
-	return c;
-}
-
-char get_fan_duty(char n, char *buffer)
-{
-	unsigned char t;
-	unsigned short s;
-
-	t = *(buffer + FAN_PWR_OFFS + (n * FAN_PWR_LEN));
-	s = (t * 100) >> 8;
-
-	return (char)s;
-}
-
-char *get_temp_name(char n, char *buffer)
-{
-	buffer[TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN+1)) + TEMP_NAME_LEN] = '\0';
-
-	return buffer + TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN+1));
-}
-
-double get_temp_value(char n, char *buffer)
-{
-	unsigned char a, b;
-	unsigned short c;
-
-	a = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN)];
-	b = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN) + 1];
-	c = (a << 8) + b;
-
-	return (double)c / 10;
-}
-
-ushort get_serial(char *buffer)
-{
-	//TODO: refactor: create get_int(), get_byte(), etc and use them here
-	unsigned char a, b;
-	unsigned short c;
-
-	a = buffer[DEV_SERIAL_OFFS];
-	b = buffer[DEV_SERIAL_OFFS + 1];
-	c = (a << 8) + b;
-
-	return c;
-}
-
 int main(int argc, char *argv[])
 {
 	int i;
 	float f;
-	char buffer[BUFFS];
+	char buffer[BUFFS], *err;
     struct options opts;
     struct usb_device *aq_dev;
     struct usb_dev_handle *aq_handle;
 
-	/* parse cmdline arguments */
+    err = NULL;
+
+    /* parse cmdline arguments */
     init_opts(&opts);
     parse_cmdline(&opts, argc, argv);
 
-    /* setup device, read data */
-    aq_dev = dev_find();
-    aq_handle = dev_init(aq_dev);
-    if (usb_interrupt_read(aq_handle, USB_ENDP, buffer, BUFFS, USB_TIMEOUT) < 0) {
+    /* setup device, read data, close device */
+    if ((aq_dev = dev_find()) == NULL) {
+    	err_die("no aquaero device found");
+    }
+    if ((aq_handle = dev_init(aq_dev, &err)) == NULL) {
+    	err_die("failed to initialize device: %s", err);
+    }
+    if (dev_read(aq_handle, buffer) < 0) {
     	err_msg("failed to read from aquero");
     }
-    if (usb_close(aq_handle) < 0) {
+    if (dev_close(aq_handle) < 0) {
        	err_msg("failed to close device");
     }
 
@@ -195,24 +190,40 @@ int main(int argc, char *argv[])
     	dump_data(opts.dump_fn, buffer);
     }
 
+    /* print only selected data if requested */
+    if (opts.fan_duty) {
+    	printf("%u%%\n", get_fan_duty(opts.fan_duty-1, buffer));
+    	exit(EXIT_SUCCESS);
+    }
+    if (opts.fan_rpm) {
+    	printf("%urpm\n", get_fan_rpm(opts.fan_rpm-1, buffer));
+    	exit(EXIT_SUCCESS);
+    }
+    if (opts.temp) {
+       	printf("%2.1f°C\n", get_temp_value(opts.temp-1, buffer));
+       	exit(EXIT_SUCCESS);
+    }
+
     /* print data */
     if (opts.all) {
     	print_heading("Device data");
-    	printf("Name:      %s\n", get_name(buffer));
-    	printf("Firmware:  %s\n", get_fw(buffer));
-    	printf("Serial:    %u\n", get_serial(buffer));
-    	printf("Produced:  %s\n", get_product(buffer));
+    	printf("Name       %s\n", get_name(buffer));
+    	printf("Firmware   %s\n", get_fw(buffer));
+    	printf("Serial     %u\n", get_serial(buffer));
+    	printf("Produced   %s\n", get_product(buffer));
+    	putchar('\n');
     }
     print_heading("Fans");
     for (i = 0; i < FAN_NUM; i++) {
-    	printf("%s: %u%% @ %u rpm\n", get_fan_name(i, buffer), get_fan_duty(i, buffer), get_fan_rpm(i, buffer));
+    	printf("%-10s %u%% @ %u rpm\n", get_fan_name(i, buffer), get_fan_duty(i, buffer), get_fan_rpm(i, buffer));
     }
+    putchar('\n');
     print_heading("Temperatures");
     for (i = 0; i < TEMP_NUM; i++) {
     	if ((f = get_temp_value(i, buffer)) == TEMP_NAN) {
     		continue;
     	}
-       	printf("%s: %.2f°C\n", get_temp_name(i, buffer), f);
+       	printf("%-10s %2.1f°C\n", get_temp_name(i, buffer), f);
     }
 
     exit(EXIT_SUCCESS);

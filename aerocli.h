@@ -19,57 +19,34 @@
 #ifndef AEROCLI_H_
 #define AEROCLI_H_
 
-#include "helpers.h"
-#include <usb.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <errno.h>
+/* includes */
+#include "device.h"
+#include <stdio.h>
+#include <sys/stat.h>		/* open() */
+#include <fcntl.h>			/* open() */
+#include <string.h>			/* strerror() */
+#include <errno.h>			/* int errno */
+#include <stdarg.h>			/* err_msg(), err_die() */
 
-/* device communication related stuff */
-#define USB_VID 			0x0c70
-#define USB_PID 			0xf0b0
-#define USB_CONF			1
-#define USB_ENDP			0x81
-#define USB_TIMEOUT			1000
-#define BUFFS				560
+/* program name */
+#define PROGN				"aerocli"
 
-/* data offsets and formatting */
-#define DEV_FW_LEN			5
-#define DEV_FW_OFFS			505
-#define	DEV_NAME_LEN		8
-#define DEV_NAME_OFFS		122
-#define DEV_SERIAL_LEN		2
-#define DEV_SERIAL_OFFS		520
-#define FAN_NUM				4
-#define FAN_NAME_LEN		10
-#define FAN_NAME_OFFS		0
-#define FAN_RPM_LEN			2
-#define FAN_RPM_OFFS		442
-#define FAN_PWR_LEN			1
-#define FAN_PWR_OFFS		198
-#define TEMP_NUM			6
-#define TEMP_NAME_LEN		10
-#define TEMP_NAME_OFFS  	55
-#define TEMP_VAL_LEN		2
-#define TEMP_VAL_OFFS		460
-#define TEMP_NAN			0x7d0
+/* cmdline options structure */
+struct options {
+	short	all;
+	short	fan_rpm;
+	short	fan_duty;
+	short	temp;
+	short	dump;
+	char	*dump_fn;
+};
 
-struct usb_device *dev_find(void);
-struct usb_dev_handle *dev_init(struct usb_device *dev);
-
-char *get_name(char *buffer);
-char *get_fw(char *buffer);
-char *get_product(char *buffer);
-char *get_fan_name(char n, char *buffer);
-ushort get_fan_rpm(char n, char *buffer);
-char get_fan_duty(char n, char *buffer);
-char *get_temp_name(char n, char *buffer);
-double get_temp_value(char n, char *buffer);
-ushort get_serial(char *buffer);
-
-/* TODO: remove this */
-/*void debug_buffer ( char *buffer, int len );*/
-
+/* functions */
+void print_help();
+void err_die(char *msg, ...);
+void err_msg(char *msg, ...);
+void init_opts(struct options *opts);
+void print_heading(char *text);
+void parse_cmdline(struct options *opts, int argc, char *argv[]);
 
 #endif /* AEROCLI_H_ */

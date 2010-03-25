@@ -2,13 +2,13 @@ CC = gcc
 CFLAGS = -Wall -pedantic -I /usr/include -lusb
 DESTDIR = /usr/local
 
-aerocli : aerocli.o helpers.o
+aerocli : aerocli.o device.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 aerocli.o : aerocli.c aerocli.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
-helpers.o : helpers.c helpers.h
+device.o : device.c device.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
 install: aerocli
