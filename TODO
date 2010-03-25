@@ -10,3 +10,8 @@
 
  - write daemon (use notes) for conky-connection through hddtemp
    (the cool stuff ;) )
+
+ - add options to cli for just printing values and only reading
+   specific data (e.g. "./aerocli -f 1 -n" for pure rpm value of
+   fan 1), to make it easily integratable in bash-scripts (graph-
+   drawing etc.) 
