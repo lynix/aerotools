@@ -88,7 +88,7 @@ void parse_cmdline(struct options *opts, int argc, char *argv[])
 			case 'f':
 				n = atoi(argv[i] + 4);
 				if (n < 1 || n > FAN_NUM) {
-					err_die("unvalid fan number");
+					err_die("invalid fan number");
 				}
 				switch (*(argv[i]+2)) {
 					case 'r':
@@ -159,7 +159,6 @@ void dump_data(char *file, char *buffer)
 int main(int argc, char *argv[])
 {
 	int i;
-	float f;
 	char buffer[BUFFS], *err;
     struct options opts;
     struct usb_device *aq_dev;
@@ -220,10 +219,7 @@ int main(int argc, char *argv[])
     putchar('\n');
     print_heading("Temperatures");
     for (i = 0; i < TEMP_NUM; i++) {
-    	if ((f = get_temp_value(i, buffer)) == TEMP_NAN) {
-    		continue;
-    	}
-       	printf("%-10s %2.1f°C\n", get_temp_name(i, buffer), f);
+    	printf("%-10s %2.1f°C\n", get_temp_name(i, buffer), get_temp_value(i, buffer));
     }
 
     exit(EXIT_SUCCESS);

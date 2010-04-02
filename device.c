@@ -157,6 +157,9 @@ double get_temp_value(char n, char *buffer)
 	a = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN)];
 	b = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN) + 1];
 	c = (a << 8) + b;
+	if ((double)c/10 == TEMP_NAN) {		/* TODO: nasty */
+		c = 0;
+	}
 
 	return (double)c / 10;
 }

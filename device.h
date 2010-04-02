@@ -28,7 +28,7 @@
 #define USB_CONF			1
 #define USB_ENDP			0x81
 #define USB_TIMEOUT			1000
-#define BUFFS				560
+#define BUFFS				553
 
 /* data offsets and formatting */
 #define DEV_FW_LEN			5
