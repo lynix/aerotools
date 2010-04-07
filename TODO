@@ -3,8 +3,5 @@
  - create get_int(), get_byte() aso. and use them to avoid
    always the same scheme in get_fan_rpm(), get_temp_value(), etc.
 
- - write daemon (use notes) for conky-connection through hddtemp
-   (the cool stuff ;) )
-
  - add "-n" switch for "-f" and "-s" to suppress units, for easy
    integration in bash-scripts, graph-drawing, etc.
