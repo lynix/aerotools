@@ -1,0 +1,74 @@
+#!/bin/bash
+
+#######################################################
+#
+# This is an init script for aerod, part of aerocli.
+# (http://github.com/lynix/aerocli)
+#
+# It has been written for use with Arch Linux, but
+# can be hacked easily to fit other init systems.
+#
+#######################################################
+
+. /etc/rc.conf
+. /etc/rc.d/functions
+
+
+# configuration
+
+PORT=7635		# port to listen on, TCP
+INTERVAL=10		# polling intrerval in s
+PIDFILE="/var/run/aerod.pid"
+AEROD="/usr/sbin/aerod"
+
+case "$1" in
+	start)
+		stat_busy "Starting aerod"
+		PID=$(pidof -o %PPID $AEROD)
+		if [ ! -z "$PID" ]; then
+			stat_fail
+			echo "$0: aerod seems to be already running"
+			exit 1
+		fi
+		$AEROD -i $INTERVAL -p $PORT
+		if [ $? -gt 0 ]; then
+			stat_fail
+			ck_daemon aerod || rm_daemon aerod
+			exit 1
+		else
+			stat_done
+			ck_daemon aerod && add_daemon aerod
+		fi
+		;;
+	stop)
+		stat_busy "Stopping aerod"
+		if [ -f "$PIDFILE" ]; then
+			PID=$(cat "$PIDFILE")
+		else
+			PID=$(pidof -o %PPID $AEROD)
+		fi
+		if [ -z "$PID" ]; then
+			stat_fail
+			echo "$0: failed to find aerod process"
+			exit 1
+		fi
+		kill $PID
+		if [ $? -gt 0 ]; then
+			stat_fail
+			exit 1
+		else
+			stat_done
+			ck_daemon aerod || rm_daemon aerod
+		fi
+		;;
+	restart)
+		$0 start
+		sleep 2
+		$0 stop
+		;;
+	*)
+		echo "usage: $0 {start|stop|restart}"
+		;;
+esac
+
+exit 0
