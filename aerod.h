@@ -22,54 +22,44 @@
 /* includes */
 #include "device.h"
 #include <stdio.h>
-#include <stdarg.h>			/* err_msg() */
-#include <syslog.h>			/* syslog() */
-#include <pthread.h>        /* pthreads */
-#include <sys/socket.h>       /*  socket definitions        */
-#include <sys/types.h>        /*  socket types              */
-#include <arpa/inet.h>        /*  inet (3) funtions         */
-#include <string.h>			/* strlen() */
-#include <errno.h>			/* errno */
-#include <signal.h>			/* signal handling */
-
+#include <stdarg.h>					/* variable arguments 	*/
+#include <syslog.h>					/* syslog()				*/
+#include <pthread.h>				/* pthreads				*/
+#include <sys/socket.h>				/* socket definitions 	*/
+#include <sys/types.h>				/* socket types			*/
+#include <arpa/inet.h>				/* inet funtions		*/
+#include <string.h>					/* strlen()				*/
+#include <errno.h>					/* errno				*/
+#include <signal.h>					/* signal handling		*/
 
 /* program name */
-#define PROGN	"aerod"
+#define PROGN			"aerod"
 
 /* default settings */
-#define PORT		7634
-#define INTERVAL	30
-#define INTER_MIN	5
-#define INTER_MAX	86400
-#define PIDF		"/var/run/aerod.pid"
-#define LISTENQ        (1024)   /*  Backlog for listen()   */
+#define PORT			7634
+#define INTERVAL		30
+#define INTERVAL_MIN	5
+#define INTERVAL_MAX	65535
+#define PID_FILE		"/var/run/aerod.pid"
+#define Q_LENGTH		1024
 
 /* cmdline options structure */
 struct options {
-	int port;
-	int interval;
-	int fork;
+	unsigned short 	port;
+	unsigned short 	interval;
+	unsigned int 	fork:1;
 };
-
-/* globals */
-char *data;
-pthread_mutex_t data_lock;
-struct options opts;
-int       list_s;                /*  listening socket          */
-int       conn_s;                /*  connection socket         */
-struct 	usb_dev_handle *aq_handle;
-
 
 /* functions */
 void print_help();
 void init_opts();
 void parse_cmdline(int argc, char *argv[]);
 void err_msg(int prio, char *msg, ...);
-void *tcp_serve(void *list_s);
-void signal_handler(int sig);
+void signal_handler(int signal);
 void send_data();
 void die();
-int	 poll_data(struct usb_dev_handle *dh);
-int  write_pidf(int pid);
+void *tcp_serve();
+int	 poll_data(struct usb_dev_handle *handle);
+int	 write_pidfile(int pid);
 
 #endif /* AEROD_H_ */

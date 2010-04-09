@@ -18,12 +18,21 @@
 
 #include "aerod.h"
 
+/* globals */
+int     		server_sock;
+int     		connection_sock;
+char			*data_buffer;
+struct			options opts;
+struct 			usb_dev_handle *aq_handle;
+pthread_mutex_t data_buffer_lock;
+
 int main(int argc, char *argv[])
 {
-	int			pid, sid, one;
-	char		*err;
+	int			pid, sid;
+	const int	one = 1;
+	char		*error;
 	struct		usb_device *aq_dev;
-	struct		sockaddr_in servaddr;
+	struct		sockaddr_in server_addr;
 	pthread_t	tcp_thread;
 
     /* parse cmdline arguments */
@@ -46,8 +55,8 @@ int main(int argc, char *argv[])
     			break;
     		default:
     			/* parent */
-    			if (write_pidf(pid) != 0) {
-    				err_msg(LOG_ERR, "failed to write pidfile (%s)", PIDF);
+    			if (write_pidfile(pid) != 0) {
+    				err_msg(LOG_ERR, "failed to write pidfile (%s)", PID_FILE);
     			}
     			exit(EXIT_SUCCESS);
     			break;
@@ -61,47 +70,46 @@ int main(int argc, char *argv[])
     signal(SIGQUIT, signal_handler);
 
     /* setup data sync mutex */
-    if (pthread_mutex_init(&data_lock, NULL) != 0) {
+    if (pthread_mutex_init(&data_buffer_lock, NULL) != 0) {
     	err_msg(LOG_ERR, "faiuled to setup mutex, terminating");
     	exit(EXIT_FAILURE);
 	}
 
     /* setup device, initial poll */
-	err = NULL;
+	error = NULL;
 	if ((aq_dev = dev_find()) == NULL) {
 		err_msg(LOG_ERR, "no aquaero device found, terminating");
 		exit(EXIT_FAILURE);
 	}
-	if ((aq_handle = dev_init(aq_dev, &err)) == NULL) {
-		err_msg(LOG_ERR, "failed to initialize device (%s), terminating", err);
+	if ((aq_handle = dev_init(aq_dev, &error)) == NULL) {
+		err_msg(LOG_ERR, "failed to initialize device (%s), terminating",
+				error);
 		exit(EXIT_FAILURE);
 	}
 
-    /* start TCP server, thread */
-	if ((list_s = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
-		err_msg(LOG_ERR, "error creating listening socket, terminating");
+    /* start TCP server */
+	if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
+		err_msg(LOG_ERR, "error creating server socket, terminating");
 		dev_close(aq_handle);
 		exit(EXIT_FAILURE);
     }
-	/* Allow local port reuse in TIME_WAIT TODO: check*/
-	one = 1;
-	setsockopt(list_s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-
-	memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port  = htons(opts.port);
-    if (bind(list_s, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+	setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port  = htons(opts.port);
+    if (bind(server_sock, (struct sockaddr *)&server_addr,
+    		sizeof(server_addr)) < 0) {
     	err_msg(LOG_ERR, "error binding server socket: %s", strerror(errno));
     	die();
     }
-	if (listen(list_s, LISTENQ) < 0) {
+	if (listen(server_sock, Q_LENGTH) < 0) {
 		err_msg(LOG_ERR, "error started listening, terminating");
 		die();
 	} else {
 		err_msg(LOG_INFO, "listening on port %d", opts.port);
 	}
-	if (pthread_create(&tcp_thread, NULL, tcp_serve, &list_s) != 0) {
+	if (pthread_create(&tcp_thread, NULL, tcp_serve, NULL) != 0) {
 		err_msg(LOG_ERR, "error spawning listen-thread, terminating");
 		die();
 	}
@@ -114,57 +122,49 @@ int main(int argc, char *argv[])
 		}
 		sleep(opts.interval);
 	}
-
-    dev_close(aq_handle);
-    exit(EXIT_SUCCESS);
 }
 
 int poll_data(struct usb_dev_handle *dh)
 {
-	char *buffer;
+	char *raw_buffer;
 
-	if ((buffer = malloc(BUFFS)) == NULL) {
+	if ((raw_buffer = malloc(BUFFS)) == NULL) {
 		return -1;
 	}
-	if (dev_read(dh, buffer) < 0) {
+	if (dev_read(dh, raw_buffer) < 0) {
 		return -1;
 	}
 
-	/* critical section for data */
-	pthread_mutex_lock(&data_lock);
-	if (data != NULL) {
-		free(data);
+	/* critical section for data_buffer */
+	pthread_mutex_lock(&data_buffer_lock);
+	if (data_buffer != NULL) {
+		free(data_buffer);
 	}
-	if ((data = malloc(249)) == NULL) {
+	if ((data_buffer = malloc(249)) == NULL) {
 		return -1;
 	}
-	/*sprintf(data, "|/dev/fan1|%s|%u|X|\n|/dev/fan2|%s|%u|X|\n|/dev/fan3|%s|%u|X|\n|/dev/fan4|%s|%u|X|\n|/dev/temp1|%s|%.0f|C|\n|/dev/temp2|%s|%.0f|C|\n|/dev/temp3|%s|%.0f|C|\n|/dev/temp4|%s|%.0f|C|\n|/dev/temp5|%s|%.0f|C|\n|/dev/temp6|%s|%.0f|C|",
-			get_fan_name(0, buffer), get_fan_rpm(0, buffer), get_fan_name(1, buffer), get_fan_rpm(1, buffer), get_fan_name(2, buffer), get_fan_rpm(2, buffer), get_fan_name(3, buffer), get_fan_rpm(3, buffer),
-			get_temp_name(0, buffer), get_temp_value(0, buffer), get_temp_name(1, buffer), get_temp_value(1, buffer), get_temp_name(2, buffer), get_temp_value(2, buffer),
-			get_temp_name(3, buffer), get_temp_value(3, buffer), get_temp_name(4, buffer), get_temp_value(4, buffer), get_temp_name(5, buffer), get_temp_value(5, buffer));*/
-	/* TODO: fix this line mess, use for-loops etc. */
-	sprintf(data, "|/dev/temp5|%s|%.0f|C||/dev/temp6|%s|%.0f|C|",
-				get_temp_name(4, buffer), get_temp_value(4, buffer), get_temp_name(5, buffer), get_temp_value(5, buffer));
-	pthread_mutex_unlock(&data_lock);
-	/* end critical section */
+	/* TODO: iterate over all sensors, detect active ones */
+	sprintf(data_buffer, "|/dev/temp5|%s|%.0f|C||/dev/temp6|%s|%.0f|C|",
+			get_temp_name(4, raw_buffer), get_temp_value(4, raw_buffer),
+			get_temp_name(5, raw_buffer), get_temp_value(5, raw_buffer));
+	pthread_mutex_unlock(&data_buffer_lock);
+	/* end critical section for data_buffer*/
 
-	free(buffer);
+	free(raw_buffer);
 
 	return 0;
 }
 
-void *tcp_serve(void *list_s)
+void *tcp_serve()
 {
-	conn_s = -1;
+	connection_sock = -1;
 
 	while (1) {
-		if ((conn_s = accept(*((int *)list_s), NULL, NULL)) < 0) {
+		if ((connection_sock = accept(server_sock, NULL, NULL)) < 0) {
 		    break;
 		}
-		pthread_mutex_lock(&data_lock);
 		send_data();
-		pthread_mutex_unlock(&data_lock);
-		close(conn_s);
+		close(connection_sock);
 	}
 
 	return NULL;
@@ -172,32 +172,35 @@ void *tcp_serve(void *list_s)
 
 void send_data()
 {
-    size_t nleft;
-    ssize_t nwritten;
-    const char *buffer;
+    size_t 		bytes_left;
+    ssize_t 	bytes_written;
+    const char  *write_pointer;
 
-    buffer = data;
-    nleft  = strlen(data);
-    while (nleft > 0) {
-    	if ((nwritten = write(conn_s, buffer, nleft)) <= 0) {
+    pthread_mutex_lock(&data_buffer_lock);
+    write_pointer = data_buffer;
+    bytes_left  = strlen(data_buffer);
+    while (bytes_left > 0) {
+    	if ((bytes_written = write(connection_sock, write_pointer,
+    			bytes_left)) <= 0) {
     		if (errno == EINTR) {
-    			nwritten = 0;
+    			bytes_written = 0;
     		} else {
     			return;
     		}
     	}
-    	nleft -= nwritten;
-    	buffer += nwritten;
+    	bytes_left -= bytes_written;
+    	write_pointer += bytes_written;
     }
+    pthread_mutex_unlock(&data_buffer_lock);
 
     return;
 }
 
-int  write_pidf(int pid)
+int write_pidfile(int pid)
 {
 	FILE *file;
 
-	if ((file = fopen(PIDF, "w")) != NULL) {
+	if ((file = fopen(PID_FILE, "w")) != NULL) {
 		fprintf(file, "%d", pid);
 		fclose(file);
 	} else return -1;
@@ -205,15 +208,15 @@ int  write_pidf(int pid)
 	return 0;
 }
 
-void signal_handler(int sig)
+void signal_handler(int signal)
 {
-	switch(sig) {
+	switch(signal) {
 		case SIGTERM:
 			err_msg(LOG_WARNING, "received SIGTERM signal, exiting");
 			die();
 			break;
 		default:
-			err_msg(LOG_WARNING, "unhandled signal %d", sig);
+			err_msg(LOG_WARNING, "unhandled signal %d", signal);
 			break;
 	}
 
@@ -222,15 +225,15 @@ void signal_handler(int sig)
 
 void die()
 {
-	if (conn_s >= 0) {
-		shutdown(conn_s, 2);
+	if (connection_sock >= 0) {
+		shutdown(connection_sock, 2);
 	}
-	close(conn_s);
-	shutdown(list_s, 2);
-	close(list_s);
+	close(connection_sock);
+	shutdown(server_sock, 2);
+	close(server_sock);
 	dev_close(aq_handle);
 	closelog();
-	unlink(PIDF);
+	unlink(PID_FILE);
 
 	exit(EXIT_SUCCESS);
 }
@@ -270,7 +273,7 @@ void parse_cmdline(int argc, char *argv[])
 				break;
 			case 'i':
 				n = atoi(argv[i] + 3);
-				if (n < INTER_MIN || n > INTER_MAX) {
+				if (n < INTERVAL_MIN || n > INTERVAL_MAX) {
 					err_msg(0, "invalid interval: %d", n);
 					exit(EXIT_FAILURE);
 				}
@@ -322,5 +325,6 @@ void print_help()
 	printf("  -h   display this usage and license information\n");
 
 	printf("\n");
-	printf("This version of %s was built on %s %s.\n", PROGN, __DATE__, __TIME__);
+	printf("This version of %s was built on %s %s.\n", PROGN, __DATE__,
+			__TIME__);
 }
