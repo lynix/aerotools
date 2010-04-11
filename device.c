@@ -31,7 +31,8 @@ struct usb_device *dev_find()
 
 	for (bus = usb_busses; bus; bus = bus->next) {
 		for (dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == USB_VID) &&  (dev->descriptor.idProduct == USB_PID)) {
+			if ((dev->descriptor.idVendor == USB_VID) &&
+					(dev->descriptor.idProduct == USB_PID)) {
 				ret = dev;
 			}
 		}
@@ -50,11 +51,11 @@ struct usb_dev_handle *dev_init(struct usb_device *dev, char **err)
 	    return NULL;
 	}
 	if ((v = usb_detach_kernel_driver_np(handle, 0)) < 0) {
-		if (v != -61) {
+		if (v != ENODATA) {
 			*err = "failed to dispatch kernel driver";
 			usb_close(handle);
 			return NULL;
-		} /* -61 means no kernel driver present, nothing to detach */
+		} /* ENODATA means no kernel driver present, nothing to detach */
 	}
 	if (usb_set_configuration(handle, USB_CONF) < 0) {
 		*err = "failed to set configuration";
@@ -80,53 +81,70 @@ int	dev_close(struct usb_dev_handle *devh)
 	return usb_close(devh);
 }
 
-char *get_name(char *buffer)
+ushort get_short(char *buffer, int offset)
 {
-	buffer[DEV_NAME_OFFS + DEV_NAME_LEN] = '\0';
-
-	return buffer + DEV_NAME_OFFS;
+	return (((unsigned char)buffer[offset]) << 8) +
+			(unsigned char)buffer[offset + 1];
 }
 
-char *get_fw(char *buffer)
-{
-	buffer[DEV_FW_OFFS + DEV_FW_LEN] = '\0';
-
-	return buffer + DEV_FW_OFFS;
-}
-
-char *get_product(char *buffer)
-{
-	/* TODO: implement */
-	return "[not implemented yet]";
-}
-
-char *get_fan_name(char n, char *buffer)
+char *get_string(char *buffer, int offset, int max_length)
 {
 	unsigned short i;
 
-	i = FAN_NAME_OFFS + (n * (FAN_NAME_LEN+1)) + FAN_NAME_LEN;
-	while (buffer[i-1] == ' ') {
+	i = offset + max_length;
+	while ((buffer[i-1] == ' ') && (i > offset)) {
 		i--;
 	}
 	buffer[i] = '\0';
 
-	return buffer + FAN_NAME_OFFS + (n * (FAN_NAME_LEN+1));
+	return buffer + offset;
+}
+
+char *get_name(char *buffer)
+{
+	return get_string(buffer, DEV_NAME_OFFS, DEV_NAME_LEN);
+}
+
+char *get_fw(char *buffer)
+{
+	return get_string(buffer, DEV_FW_OFFS, DEV_FW_LEN);
+}
+
+char get_prod_year(char *buffer)
+{
+	return buffer[DEV_PROD_Y_OFFS];
+}
+
+char get_prod_month(char *buffer)
+{
+	return buffer[DEV_PROD_M_OFFS];
+}
+
+ushort get_flash_count(char *buffer)
+{
+	return get_short(buffer, DEV_FLASHC_OFFS);
+}
+
+ushort get_os(char *buffer)
+{
+	return get_short(buffer, DEV_OS_OFFS);
+}
+
+char *get_fan_name(char n, char *buffer)
+{
+	return get_string(buffer, FAN_NAME_OFFS + (n * (FAN_NAME_LEN + 1)),
+			FAN_NAME_LEN);
 }
 
 ushort get_fan_rpm(char n, char *buffer)
 {
-	unsigned char a, b;
-	unsigned short c;
-
-	a = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN)];
-	b = buffer[FAN_RPM_OFFS + (n * FAN_RPM_LEN) + 1];
-	c = (a << 8) + b;
-
-	return c;
+	/* TODO: handle disconnected fans */
+	return get_short(buffer, FAN_RPM_OFFS + (n * FAN_RPM_LEN));
 }
 
 char get_fan_duty(char n, char *buffer)
 {
+	/* TODO: simplify */
 	unsigned char t;
 	unsigned short s;
 
@@ -138,41 +156,20 @@ char get_fan_duty(char n, char *buffer)
 
 char *get_temp_name(char n, char *buffer)
 {
-	unsigned short i;
-
-	i = TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN+1)) + TEMP_NAME_LEN;
-	while (buffer[i-1] == ' ') {
-		i--;
-	}
-	buffer[i] = '\0';
-
-	return buffer + TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN+1));
+	return get_string(buffer, TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN + 1)),
+			TEMP_NAME_LEN);
 }
 
 double get_temp_value(char n, char *buffer)
 {
-	unsigned char a, b;
 	unsigned short c;
 
-	a = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN)];
-	b = buffer[TEMP_VAL_OFFS + (n * TEMP_VAL_LEN) + 1];
-	c = (a << 8) + b;
-	if ((double)c/10 == TEMP_NAN) {		/* TODO: nasty */
-		c = 0;
-	}
+	c = get_short(buffer, TEMP_VAL_OFFS + (n * TEMP_VAL_LEN));
 
-	return (double)c / 10;
+	return (c != TEMP_NAN) ? (double)c / 10 : -1;
 }
 
 ushort get_serial(char *buffer)
 {
-	/* TODO: refactor: create get_int(), get_byte(), etc and use them here */
-	unsigned char a, b;
-	unsigned short c;
-
-	a = buffer[DEV_SERIAL_OFFS];
-	b = buffer[DEV_SERIAL_OFFS + 1];
-	c = (a << 8) + b;
-
-	return c;
+	return get_short(buffer, DEV_SERIAL_OFFS);
 }

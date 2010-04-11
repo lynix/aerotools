@@ -29,14 +29,18 @@
 #define USB_ENDP			0x81
 #define USB_TIMEOUT			1000
 #define BUFFS				553
+#define ENODATA				-61
 
 /* data offsets and formatting */
 #define DEV_FW_LEN			5
 #define DEV_FW_OFFS			505
 #define	DEV_NAME_LEN		8
 #define DEV_NAME_OFFS		122
-#define DEV_SERIAL_LEN		2
+#define DEV_OS_OFFS			512
+#define DEV_FLASHC_OFFS		516
 #define DEV_SERIAL_OFFS		520
+#define DEV_PROD_M_OFFS		522
+#define DEV_PROD_Y_OFFS		523
 #define FAN_NUM				4
 #define FAN_NAME_LEN		10
 #define FAN_NAME_OFFS		0
@@ -49,21 +53,28 @@
 #define TEMP_NAME_OFFS  	55
 #define TEMP_VAL_LEN		2
 #define TEMP_VAL_OFFS		460
-#define TEMP_NAN			0x7d0
+#define TEMP_NAN			0x4e20
+#define TEMP_NCONN			-1.0
 
-/* functions */
+/* device communication */
 struct 	usb_device *dev_find();
 struct 	usb_dev_handle *dev_init(struct usb_device *dev, char **err);
 int		dev_read(struct usb_dev_handle *devh, char *buffer);
 int		dev_close(struct usb_dev_handle *devh);
+/* data processing */
+ushort	get_short(char *buffer, int offset);
+char	*get_string(char *buffer, int offset, int max_length);
 char 	*get_name(char *buffer);
 char 	*get_fw(char *buffer);
-char 	*get_product(char *buffer);
 char 	*get_fan_name(char n, char *buffer);
-char 	*get_temp_name(char n, char *buffer);
+char    *get_temp_name(char n, char *buffer);
 char 	get_fan_duty(char n, char *buffer);
+char 	get_prod_year(char *buffer);
+char 	get_prod_month(char *buffer);
 ushort 	get_fan_rpm(char n, char *buffer);
 ushort 	get_serial(char *buffer);
+ushort	get_flash_count(char *buffer);
+ushort	get_os(char *buffer);
 double 	get_temp_value(char n, char *buffer);
 
 #endif /* DEVICE_H_ */

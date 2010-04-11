@@ -81,7 +81,7 @@ void parse_cmdline(struct options *opts, int argc, char *argv[])
 			case 's':
 				n = atoi(argv[i] + 3);
 				if (n < 1 || n > TEMP_NUM) {
-					err_die("unvalid sensor number");
+					err_die("invalid sensor number");
 				}
 				opts->temp = n;
 				break;
@@ -159,6 +159,7 @@ void dump_data(char *file, char *buffer)
 int main(int argc, char *argv[])
 {
 	int i;
+	double d;
 	char buffer[BUFFS], *err;
     struct options opts;
     struct usb_device *aq_dev;
@@ -206,20 +207,29 @@ int main(int argc, char *argv[])
     /* print data */
     if (opts.all) {
     	print_heading("Device data");
-    	printf("Name       %s\n", get_name(buffer));
-    	printf("Firmware   %s\n", get_fw(buffer));
-    	printf("Serial     %u\n", get_serial(buffer));
-    	printf("Produced   %s\n", get_product(buffer));
+    	printf("Name          %s\n", get_name(buffer));
+    	printf("Firmware      %s\n", get_fw(buffer));
+    	printf("OS Version    %u\n", get_os(buffer));
+    	printf("Serial        %u\n", get_serial(buffer));
+    	printf("Produced      20%02u-%02u\n", get_prod_year(buffer),
+    			get_prod_month(buffer));
+    	printf("Flash count   %u\n", get_flash_count(buffer));
     	putchar('\n');
     }
-    print_heading("Fans");
+    print_heading("Fan sensors");
     for (i = 0; i < FAN_NUM; i++) {
+    	/* TODO: handle disconnected ones */
     	printf("%-10s %u%% @ %u rpm\n", get_fan_name(i, buffer), get_fan_duty(i, buffer), get_fan_rpm(i, buffer));
     }
     putchar('\n');
-    print_heading("Temperatures");
+    print_heading("Temp sensors");
     for (i = 0; i < TEMP_NUM; i++) {
-    	printf("%-10s %2.1f°C\n", get_temp_name(i, buffer), get_temp_value(i, buffer));
+    	d = get_temp_value(i, buffer);
+    	if (d != TEMP_NCONN) {
+    		printf("%-10s %2.1f°C\n", get_temp_name(i, buffer), d);
+    	} else if (opts.all) {
+    		printf("%-10s not connected\n", get_temp_name(i, buffer));
+    	}
     }
 
     exit(EXIT_SUCCESS);
