@@ -42,6 +42,7 @@
 #define INTERVAL_MAX	65535
 #define PID_FILE		"/var/run/aerod.pid"
 #define Q_LENGTH		1024
+#define DATA_MAX_LEN	180
 
 /* cmdline options structure */
 struct options {
@@ -59,7 +60,7 @@ void signal_handler(int signal);
 void send_data();
 void die();
 void *tcp_serve();
-int	 poll_data(struct usb_dev_handle *handle);
+int	 poll_data();
 int	 write_pidfile(int pid);
 
 #endif /* AEROD_H_ */

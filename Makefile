@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -I /usr/include -g
-DESTDIR = /usr/local
+DESTDIR = /usr
 
 all : aerocli aerod
 

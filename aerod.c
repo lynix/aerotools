@@ -23,15 +23,12 @@ int     		server_sock;
 int     		connection_sock;
 char			*data_buffer;
 struct			options opts;
-struct 			usb_dev_handle *aq_handle;
 pthread_mutex_t data_buffer_lock;
 
 int main(int argc, char *argv[])
 {
 	int			pid, sid;
 	const int	one = 1;
-	char		*error;
-	struct		usb_device *aq_dev;
 	struct		sockaddr_in server_addr;
 	pthread_t	tcp_thread;
 
@@ -71,26 +68,18 @@ int main(int argc, char *argv[])
 
     /* setup data sync mutex */
     if (pthread_mutex_init(&data_buffer_lock, NULL) != 0) {
-    	err_msg(LOG_ERR, "faiuled to setup mutex, terminating");
+    	err_msg(LOG_ERR, "failed to setup mutex, terminating");
     	exit(EXIT_FAILURE);
 	}
 
-    /* setup device, initial poll */
-	error = NULL;
-	if ((aq_dev = dev_find()) == NULL) {
-		err_msg(LOG_ERR, "no aquaero device found, terminating");
-		exit(EXIT_FAILURE);
-	}
-	if ((aq_handle = dev_init(aq_dev, &error)) == NULL) {
-		err_msg(LOG_ERR, "failed to initialize device (%s), terminating",
-				error);
-		exit(EXIT_FAILURE);
-	}
+    /* initial poll */
+    if (poll_data() != 0) {
+    	exit(EXIT_FAILURE);
+    }
 
     /* start TCP server */
 	if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
 		err_msg(LOG_ERR, "error creating server socket, terminating");
-		dev_close(aq_handle);
 		exit(EXIT_FAILURE);
     }
 	setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
@@ -116,7 +105,7 @@ int main(int argc, char *argv[])
 
 	/* start infinite polling-loop */
 	while (1) {
-		if (poll_data(aq_handle) != 0) {
+		if (poll_data() != 0) {
 			err_msg(LOG_ERR, "failed to read from device, terminating");
 			die();
 		}
@@ -124,29 +113,56 @@ int main(int argc, char *argv[])
 	}
 }
 
-int poll_data(struct usb_dev_handle *dh)
+int poll_data()
 {
-	char *raw_buffer;
+	char 	*raw_buffer, *temp_data, *position, *error, i;
+	struct	usb_device *aq_dev;
+	struct 	usb_dev_handle *aq_handle;
+	double 	d;
 
+	/* setup read buffer */
 	if ((raw_buffer = malloc(BUFFS)) == NULL) {
 		return -1;
 	}
-	if (dev_read(dh, raw_buffer) < 0) {
+
+	/* setup device, read raw data */
+	error = NULL;
+	if ((aq_dev = dev_find()) == NULL) {
+		err_msg(LOG_ERR, "no aquaero device found, terminating");
 		return -1;
 	}
+	if ((aq_handle = dev_init(aq_dev, &error)) == NULL) {
+		err_msg(LOG_ERR, "failed to initialize device (%s), terminating",
+				error);
+		return -1;
+	}
+	if (dev_read(aq_handle, raw_buffer) < 0) {
+		dev_close(aq_handle);
+		return -1;
+	}
+	dev_close(aq_handle);
 
-	/* critical section for data_buffer */
+	/* process data */
+	if ((temp_data = malloc(DATA_MAX_LEN)) == NULL) {
+		free(raw_buffer);
+		return -1;
+	}
+	position = temp_data;
+	for (i = 0; i < TEMP_NUM; i++) {
+		if ((d = get_temp_value(i, raw_buffer)) != TEMP_NCONN) {
+			sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
+					get_temp_name(i, raw_buffer), d);
+			position = temp_data + strlen(temp_data);
+		}
+	}
+	temp_data = realloc(temp_data, strlen(temp_data)+1);
+
+	/* begin critical section for data_buffer */
 	pthread_mutex_lock(&data_buffer_lock);
 	if (data_buffer != NULL) {
 		free(data_buffer);
 	}
-	if ((data_buffer = malloc(249)) == NULL) {
-		return -1;
-	}
-	/* TODO: iterate over all sensors, detect active ones */
-	sprintf(data_buffer, "|/dev/temp5|%s|%.0f|C||/dev/temp6|%s|%.0f|C|",
-			get_temp_name(4, raw_buffer), get_temp_value(4, raw_buffer),
-			get_temp_name(5, raw_buffer), get_temp_value(5, raw_buffer));
+	data_buffer = temp_data;
 	pthread_mutex_unlock(&data_buffer_lock);
 	/* end critical section for data_buffer*/
 
@@ -212,7 +228,7 @@ void signal_handler(int signal)
 {
 	switch(signal) {
 		case SIGTERM:
-			err_msg(LOG_WARNING, "received SIGTERM signal, exiting");
+			err_msg(LOG_WARNING, "received SIGTERM signal, terminating");
 			die();
 			break;
 		default:
@@ -231,7 +247,6 @@ void die()
 	close(connection_sock);
 	shutdown(server_sock, 2);
 	close(server_sock);
-	dev_close(aq_handle);
 	closelog();
 	unlink(PID_FILE);
 
