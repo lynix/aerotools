@@ -1,4 +1,2 @@
- - write README
-
  - add "-n" switch for "-f" and "-s" to suppress units, for easy
    integration in bash-scripts, graph-drawing, etc.
