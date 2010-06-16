@@ -1,2 +1,10 @@
  - add "-n" switch for "-f" and "-s" to suppress units, for easy
    integration in bash-scripts, graph-drawing, etc.
+
+ - replace arg parsing with stdopts
+ 
+ - use send() from socket.h instead of handmade one... *grml*
+ 
+ - think about MAX_LINE, for security reasons
+ 
+ - lots of refactoring ;)

@@ -21,7 +21,7 @@
 /* globals */
 int     		server_sock;
 int     		connection_sock;
-char			*data_buffer;
+char			*data_buffer, *hddtemp_data;
 struct			options opts;
 pthread_mutex_t data_buffer_lock;
 
@@ -143,7 +143,7 @@ int poll_data()
 	dev_close(aq_handle);
 
 	/* process data */
-	if ((temp_data = malloc(DATA_MAX_LEN)) == NULL) {
+	if ((temp_data = malloc(MAX_LINE)) == NULL) {
 		free(raw_buffer);
 		return -1;
 	}
@@ -155,6 +155,19 @@ int poll_data()
 			position = temp_data + strlen(temp_data);
 		}
 	}
+
+	/* hddtemp query */
+	if (opts.hddtemp) {
+		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL) {
+			err_msg(LOG_ERR, "failed to retrieve data from hddtemp");
+		} else {
+			sprintf(position, "%s", hddtemp_data);
+			position = temp_data + strlen(temp_data);
+			free(hddtemp_data);
+			hddtemp_data = NULL;
+		}
+	}
+
 	temp_data = realloc(temp_data, strlen(temp_data)+1);
 
 	/* begin critical section for data_buffer */
@@ -212,6 +225,46 @@ void send_data()
     return;
 }
 
+char *poll_hddtemp(char *host, unsigned short port)
+{
+	char 	*hddtemp_buffer;
+	int		client_sock, bytes_read;
+	struct 	sockaddr_in server_addr;
+
+	if ((hddtemp_buffer = malloc(MAX_LINE)) == NULL) {
+		return NULL;
+	}
+	bzero(hddtemp_buffer, MAX_LINE);
+
+	bzero((char *) &server_addr, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = inet_addr(host);
+	server_addr.sin_port = htons(port);
+	if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		free(hddtemp_buffer);
+		return NULL;
+	}
+	if ((connect(client_sock, (struct sockaddr*) &server_addr,
+			sizeof(server_addr))) < 0) {
+		free(hddtemp_buffer);
+		return NULL;
+	}
+
+	bytes_read = recv(client_sock, hddtemp_buffer, MAX_LINE, MSG_WAITALL);
+	shutdown(client_sock, SHUT_RD);
+	close(client_sock);
+
+	if (bytes_read < 0) {
+		free(hddtemp_buffer);
+		hddtemp_buffer = NULL;
+	} else {
+		hddtemp_buffer = realloc(hddtemp_buffer, bytes_read+1);
+		hddtemp_buffer[bytes_read] = '\0';
+	}
+
+	return hddtemp_buffer;
+}
+
 int write_pidfile(int pid)
 {
 	FILE *file;
@@ -258,6 +311,7 @@ void init_opts()
 	opts.port = PORT;
 	opts.interval = INTERVAL;
 	opts.fork = 1;
+	opts.hddtemp = 0;
 
 	return;
 }
@@ -277,6 +331,9 @@ void parse_cmdline(int argc, char *argv[])
 				break;
 			case 'F':
 				opts.fork = 0;
+				break;
+			case 't':
+				opts.hddtemp = 1;
 				break;
 			case 'p':
 				n = atoi(argv[i] + 3);
@@ -337,6 +394,7 @@ void print_help()
 	printf("  -p   port to listen to (default %d)\n", PORT);
 	printf("  -i   interval for polling in seconds (default: %d)\n", INTERVAL);
 	printf("  -F   don't daemonize, stay in foreground\n");
+	printf("  -t   query hddtemp and import results\n");
 	printf("  -h   display this usage and license information\n");
 
 	printf("\n");

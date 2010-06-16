@@ -37,18 +37,21 @@
 
 /* default settings */
 #define PORT			7634
+#define HDDTEMP_PORT	7634
+#define HDDTEMP_HOST	"127.0.0.1"
 #define INTERVAL		30
 #define INTERVAL_MIN	5
 #define INTERVAL_MAX	65535
 #define PID_FILE		"/var/run/aerod.pid"
 #define Q_LENGTH		1024
-#define DATA_MAX_LEN	180
+#define MAX_LINE		1024
 
 /* cmdline options structure */
 struct options {
 	unsigned short 	port;
 	unsigned short 	interval;
 	unsigned int 	fork:1;
+	unsigned int	hddtemp:1;
 };
 
 /* functions */
@@ -61,6 +64,7 @@ void send_data();
 void die();
 void *tcp_serve();
 int	 poll_data();
+char *poll_hddtemp(char *host, unsigned short port);
 int	 write_pidfile(int pid);
 
 #endif /* AEROD_H_ */

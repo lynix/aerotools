@@ -34,8 +34,8 @@
 /* data offsets and formatting */
 #define DEV_FW_LEN			5
 #define DEV_FW_OFFS			505
-#define	DEV_NAME_LEN		8
-#define DEV_NAME_OFFS		122
+#define	DEV_NAME_LEN		9
+#define DEV_NAME_OFFS		121
 #define DEV_OS_OFFS			512
 #define DEV_FLASHC_OFFS		516
 #define DEV_SERIAL_OFFS		520
