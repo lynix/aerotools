@@ -1,6 +1,6 @@
 /* Copyright lynix <lynix47@gmail.com>, 2010
  *
- * This file is part of aerocli.
+ * This file is part of aerotools.
  *
  * aerocli is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

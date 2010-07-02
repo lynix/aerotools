@@ -1,6 +1,6 @@
 
-             aerocli: CLI for the aquaero(R) 4.0 USB device
-            ------------------------------------------------
+            aerotools: CLI for the aquaero(R) 4.0 USB device
+           --------------------------------------------------
         
                    (C) 2010 by lynix <lynix47@gmail.com>
         
@@ -8,11 +8,11 @@
 
 SUMMARY
 ----------------
-aerocli is a collection of command-line tools for getting status information
+aerotools is a collection of command-line tools for getting status information
 via USB from the auqaero(R) 4.0 USB device (see AQUAERO). It currently consists
 of a client (aerocli, see CLIENT) and a server daemon (aerod, see SERVER).
 
-aerocli is neither supposed to be a replacement for the existing 'aeinfo' (see
+aerotools is neither supposed to be a replacement for the existing 'aeinfo' (see
 AEINFO), nor to be a complete linux interface for the device. It was written
 to retrieve sensor data from the aquaero(R) device, and easily integrate it
 into bash-scripts or conky. Nothing more, nothing less.
@@ -32,7 +32,7 @@ aeinfo is the original linux software, the aquaero comes shipped with. It was
 written in C++ by Christian Unger <coder@breakbe.at>. The development seems
 currently freezed. You can find more information about aeinfo on the development
 website, http://breakbe.at/development/aquaero/.
-Unlike aerocli, it was designed to allow not only querying but also changing
+Unlike aerotools, it was designed to allow not only querying but also changing
 settings on the aquaero(R) device.
 
 
