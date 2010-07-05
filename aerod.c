@@ -284,6 +284,10 @@ void signal_handler(int signal)
 			err_msg(LOG_WARNING, "received SIGTERM signal, terminating");
 			die();
 			break;
+		case SIGINT:
+			err_msg(LOG_WARNING, "received SIGINT signal, terminating");
+			die();
+			break;
 		default:
 			err_msg(LOG_WARNING, "unhandled signal %d", signal);
 			break;
