@@ -2,11 +2,11 @@
 
 #######################################################
 #
-# This is an init script for aerod, part of aerocli.
-# (http://github.com/lynix/aerocli)
+# This is an init script for aerod, part of aerotools.
+# (http://github.com/lynix/aerotools)
 #
 # It has been written for use with Arch Linux, but
-# can be hacked easily to fit other init systems.
+# can be modified easily to fit other init systems.
 #
 #######################################################
 
@@ -15,11 +15,10 @@
 
 
 # configuration
+PORT=7635		                        # port to listen on, TCP
+INTERVAL=10		                        # polling intrerval in seconds
+AEROD="/usr/sbin/aerod"                 # path to binary
 
-PORT=7635		# port to listen on, TCP
-INTERVAL=10		# polling intrerval in s
-PIDFILE="/var/run/aerod.pid"
-AEROD="/usr/sbin/aerod"
 
 case "$1" in
 	start)
@@ -35,36 +34,31 @@ case "$1" in
 			stat_fail
 			ck_daemon aerod || rm_daemon aerod
 			exit 1
-		else
-			stat_done
-			ck_daemon aerod && add_daemon aerod
 		fi
+		stat_done
+		ck_daemon aerod && add_daemon aerod
 		;;
 	stop)
 		stat_busy "Stopping aerod"
-		if [ -f "$PIDFILE" ]; then
-			PID=$(cat "$PIDFILE")
-		else
-			PID=$(pidof -o %PPID $AEROD)
-		fi
+		PID=$(pidof -o %PPID $AEROD)
 		if [ -z "$PID" ]; then
 			stat_fail
 			echo "$0: failed to find aerod process"
+            ck_daemon aerod || rm_daemon aerod
 			exit 1
 		fi
 		kill $PID
 		if [ $? -gt 0 ]; then
 			stat_fail
 			exit 1
-		else
-			stat_done
-			ck_daemon aerod || rm_daemon aerod
 		fi
+		stat_done
+		ck_daemon aerod || rm_daemon aerod
 		;;
 	restart)
-		$0 start
-		sleep 2
+		$0 start && sleep 2
 		$0 stop
+        exit $?
 		;;
 	*)
 		echo "usage: $0 {start|stop|restart}"
