@@ -20,7 +20,6 @@
 
 /* globals */
 int     		server_sock;
-int     		connection_sock;
 char			*data_buffer, *hddtemp_data;
 struct			options opts;
 pthread_mutex_t data_buffer_lock;
@@ -186,43 +185,19 @@ int poll_data()
 
 void *tcp_serve()
 {
-	connection_sock = -1;
+	int connection_sock = -1;
 
 	while (1) {
 		if ((connection_sock = accept(server_sock, NULL, NULL)) < 0) {
 		    break;
 		}
-		send_data();
+		pthread_mutex_lock(&data_buffer_lock);
+		send(connection_sock, data_buffer, strlen(data_buffer), 0);
+		pthread_mutex_unlock(&data_buffer_lock);
 		close(connection_sock);
 	}
 
 	return NULL;
-}
-
-void send_data()
-{
-    size_t 		bytes_left;
-    ssize_t 	bytes_written;
-    const char  *write_pointer;
-
-    pthread_mutex_lock(&data_buffer_lock);
-    write_pointer = data_buffer;
-    bytes_left  = strlen(data_buffer);
-    while (bytes_left > 0) {
-    	if ((bytes_written = write(connection_sock, write_pointer,
-    			bytes_left)) <= 0) {
-    		if (errno == EINTR) {
-    			bytes_written = 0;
-    		} else {
-    			return;
-    		}
-    	}
-    	bytes_left -= bytes_written;
-    	write_pointer += bytes_written;
-    }
-    pthread_mutex_unlock(&data_buffer_lock);
-
-    return;
 }
 
 char *poll_hddtemp(char *host, unsigned short port)
@@ -298,10 +273,6 @@ void signal_handler(int signal)
 
 void die()
 {
-	if (connection_sock >= 0) {
-		shutdown(connection_sock, 2);
-	}
-	close(connection_sock);
 	shutdown(server_sock, 2);
 	close(server_sock);
 	closelog();

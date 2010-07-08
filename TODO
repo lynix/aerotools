@@ -3,8 +3,6 @@
 
  - replace arg parsing with stdopts
  
- - use send() from socket.h instead of handmade one... *grml*
- 
  - think about MAX_LINE, for security reasons
  
  - implement time synchronization (as the only non-read-only
