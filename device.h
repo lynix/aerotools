@@ -21,60 +21,83 @@
 
 /* includes */
 #include <usb.h>
+#include <string.h>
 
-/* device communication related stuff */
-#define USB_VID 			0x0c70
-#define USB_PID 			0xf0b0
-#define USB_CONF			1
-#define USB_ENDP			0x81
-#define USB_TIMEOUT			1000
-#define BUFFS				553
-#define ENODATA				-61
+/* usb device communication related stuff */
+#define AQ_USB_VID 				0x0c70
+#define AQ_USB_PID 				0xf0b0
+#define AQ_USB_CONF				1
+#define AQ_USB_ENDP				0x81
+#define AQ_USB_TIMEOUT			1000
+#define AQ_USB_RETRIES			3
+#define AQ_USB_RETRY_DELAY		200
+#define AQ_BUFFS				553
+#define AQ_ENODATA				-61
 
-/* data offsets and formatting */
-#define DEV_FW_LEN			5
-#define DEV_FW_OFFS			505
-#define	DEV_NAME_LEN		9
-#define DEV_NAME_OFFS		121
-#define DEV_OS_OFFS			512
-#define DEV_FLASHC_OFFS		516
-#define DEV_SERIAL_OFFS		520
-#define DEV_PROD_M_OFFS		522
-#define DEV_PROD_Y_OFFS		523
-#define FAN_NUM				4
-#define FAN_NAME_LEN		10
-#define FAN_NAME_OFFS		0
-#define FAN_RPM_LEN			2
-#define FAN_RPM_OFFS		442
-#define FAN_PWR_LEN			1
-#define FAN_PWR_OFFS		198
-#define TEMP_NUM			6
-#define TEMP_NAME_LEN		10
-#define TEMP_NAME_OFFS  	55
-#define TEMP_VAL_LEN		2
-#define TEMP_VAL_OFFS		460
-#define TEMP_NAN			0x4e20
-#define TEMP_NCONN			-1.0
+/* data offsets and formatting constants */
+#define AQ_DEV_FW_LEN			5
+#define AQ_DEV_FW_OFFS			505
+#define	AQ_DEV_NAME_LEN			9
+#define AQ_DEV_NAME_OFFS		121
+#define AQ_DEV_OS_OFFS			512
+#define AQ_DEV_FLASHC_OFFS		516
+#define AQ_DEV_SERIAL_OFFS		520
+#define AQ_DEV_PROD_M_OFFS		522
+#define AQ_DEV_PROD_Y_OFFS		523
+#define AQ_FAN_NUM				4
+#define AQ_FAN_NAME_LEN			10
+#define AQ_FAN_NAME_OFFS		0
+#define AQ_FAN_RPM_LEN			2
+#define AQ_FAN_RPM_OFFS			442
+#define AQ_FAN_PWR_LEN			1
+#define AQ_FAN_PWR_OFFS			198
+#define AQ_TEMP_NUM				6
+#define AQ_TEMP_NAME_LEN		10
+#define AQ_TEMP_NAME_OFFS  		55
+#define AQ_TEMP_VAL_LEN			2
+#define AQ_TEMP_VAL_OFFS		460
+#define AQ_TEMP_NAN				0x4e20
+#define AQ_TEMP_NCONN			-1.0
+
+/* complete device data structure */
+struct aquaero_data {
+	char 		*device_name;
+	char 		*firmware;
+	char 		prod_year;
+	char 		prod_month;
+	ushort 		device_serial;
+	ushort 		flash_count;
+	ushort 		os_version;
+	char 		*fan_names[AQ_FAN_NUM];
+	char 		*temp_names[AQ_TEMP_NUM];
+	ushort 		fan_rpm[AQ_FAN_NUM];
+	char 		fan_duty[AQ_FAN_NUM];
+	double 		temp_values[AQ_TEMP_NUM];
+};
 
 /* device communication */
-struct 	usb_device *dev_find();
-struct 	usb_dev_handle *dev_init(struct usb_device *dev, char **err);
-int		dev_read(struct usb_dev_handle *devh, char *buffer);
-int		dev_close(struct usb_dev_handle *devh);
+struct 	usb_device *aq_dev_find();
+struct 	usb_dev_handle *aq_dev_init(char **err);
+int		aq_dev_read(struct usb_dev_handle *devh, char *buffer);
+int		aq_dev_close(struct usb_dev_handle *devh);
+
 /* data processing */
-ushort	get_short(char *buffer, int offset);
-char	*get_string(char *buffer, int offset, int max_length);
-char 	*get_name(char *buffer);
-char 	*get_fw(char *buffer);
-char 	*get_fan_name(char n, char *buffer);
-char    *get_temp_name(char n, char *buffer);
-char 	get_fan_duty(char n, char *buffer);
-char 	get_prod_year(char *buffer);
-char 	get_prod_month(char *buffer);
-ushort 	get_fan_rpm(char n, char *buffer);
-ushort 	get_serial(char *buffer);
-ushort	get_flash_count(char *buffer);
-ushort	get_os(char *buffer);
-double 	get_temp_value(char n, char *buffer);
+ushort	aq_get_short(char *buffer, int offset);
+char	*aq_get_string(char *buffer, int offset, int max_length);
+char 	*aq_get_name(char *buffer);
+char 	*aq_get_fw(char *buffer);
+char 	*aq_get_fan_name(char n, char *buffer);
+char    *aq_get_temp_name(char n, char *buffer);
+char 	aq_get_fan_duty(char n, char *buffer);
+char 	aq_get_prod_year(char *buffer);
+char 	aq_get_prod_month(char *buffer);
+ushort 	aq_get_fan_rpm(char n, char *buffer);
+ushort 	aq_get_serial(char *buffer);
+ushort	aq_get_flash_count(char *buffer);
+ushort	aq_get_os(char *buffer);
+double 	aq_get_temp_value(char n, char *buffer);
+
+/* all-in-one API query function */
+struct	aquaero_data *aquaero_poll_data(char *buffer, char **err_msg);
 
 #endif /* DEVICE_H_ */

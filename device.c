@@ -18,7 +18,11 @@
 
 #include "device.h"
 
-struct usb_device *dev_find()
+/* globals */
+struct usb_device *aq_usb_dev = NULL;
+
+
+struct usb_device *aq_dev_find()
 {
 	struct usb_bus *bus;
 	struct usb_device *dev, *ret;
@@ -31,8 +35,8 @@ struct usb_device *dev_find()
 
 	for (bus = usb_busses; bus; bus = bus->next) {
 		for (dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == USB_VID) &&
-					(dev->descriptor.idProduct == USB_PID)) {
+			if ((dev->descriptor.idVendor == AQ_USB_VID) &&
+					(dev->descriptor.idProduct == AQ_USB_PID)) {
 				ret = dev;
 			}
 		}
@@ -41,27 +45,29 @@ struct usb_device *dev_find()
 	return ret;
 }
 
-struct usb_dev_handle *dev_init(struct usb_device *dev, char **err)
+struct usb_dev_handle *aq_dev_init(char **err)
 {
 	struct usb_dev_handle *handle;
 	int v;
 
-	if ((handle = usb_open(dev)) == NULL) {
+	if ((handle = usb_open(aq_usb_dev)) == NULL) {
 	    *err = "failed to open device";
 	    return NULL;
 	}
 	if ((v = usb_detach_kernel_driver_np(handle, 0)) < 0) {
-		if (v != ENODATA) {
+		if (v != AQ_ENODATA) {
 			*err = "failed to dispatch kernel driver";
 			usb_close(handle);
 			return NULL;
 		} /* ENODATA means no kernel driver present, nothing to detach */
 	}
-	if (usb_set_configuration(handle, USB_CONF) < 0) {
+	/* TODO: implement retrying (AQ_USB_RETRIES, AQ_USB_RETRY_DELAY */
+	if (usb_set_configuration(handle, AQ_USB_CONF) < 0) {
 		*err = "failed to set configuration";
 		usb_close(handle);
 		return NULL;
 	}
+	/* TODO: handle EBUSY (see libusb trac wiki page) */
 	if (usb_claim_interface(handle, 0) < 0) {
 		*err = "failed to claim interface";
 		usb_close(handle);
@@ -71,23 +77,24 @@ struct usb_dev_handle *dev_init(struct usb_device *dev, char **err)
 	return handle;
 }
 
-int	dev_read(struct usb_dev_handle *devh, char *buffer)
+int	aq_dev_read(struct usb_dev_handle *devh, char *buffer)
 {
-	return usb_interrupt_read(devh, USB_ENDP, buffer, BUFFS, USB_TIMEOUT);
+	return usb_interrupt_read(devh, AQ_USB_ENDP, buffer, AQ_BUFFS,
+			AQ_USB_TIMEOUT);
 }
 
-int	dev_close(struct usb_dev_handle *devh)
+int	aq_dev_close(struct usb_dev_handle *devh)
 {
 	return usb_close(devh);
 }
 
-ushort get_short(char *buffer, int offset)
+ushort aq_get_short(char *buffer, int offset)
 {
 	return (((unsigned char)buffer[offset]) << 8) +
 			(unsigned char)buffer[offset + 1];
 }
 
-char *get_string(char *buffer, int offset, int max_length)
+char *aq_get_string(char *buffer, int offset, int max_length)
 {
 	unsigned short i;
 
@@ -100,76 +107,146 @@ char *get_string(char *buffer, int offset, int max_length)
 	return buffer + offset;
 }
 
-char *get_name(char *buffer)
+char *aq_get_name(char *buffer)
 {
-	return get_string(buffer, DEV_NAME_OFFS, DEV_NAME_LEN);
+	return aq_get_string(buffer, AQ_DEV_NAME_OFFS, AQ_DEV_NAME_LEN);
 }
 
-char *get_fw(char *buffer)
+char *aq_get_fw(char *buffer)
 {
-	return get_string(buffer, DEV_FW_OFFS, DEV_FW_LEN);
+	return aq_get_string(buffer, AQ_DEV_FW_OFFS, AQ_DEV_FW_LEN);
 }
 
-char get_prod_year(char *buffer)
+char aq_get_prod_year(char *buffer)
 {
-	return buffer[DEV_PROD_Y_OFFS];
+	return buffer[AQ_DEV_PROD_Y_OFFS];
 }
 
-char get_prod_month(char *buffer)
+char aq_get_prod_month(char *buffer)
 {
-	return buffer[DEV_PROD_M_OFFS];
+	return buffer[AQ_DEV_PROD_M_OFFS];
 }
 
-ushort get_flash_count(char *buffer)
+ushort aq_get_flash_count(char *buffer)
 {
-	return get_short(buffer, DEV_FLASHC_OFFS);
+	return aq_get_short(buffer, AQ_DEV_FLASHC_OFFS);
 }
 
-ushort get_os(char *buffer)
+ushort aq_get_os_version(char *buffer)
 {
-	return get_short(buffer, DEV_OS_OFFS);
+	return aq_get_short(buffer, AQ_DEV_OS_OFFS);
 }
 
-char *get_fan_name(char n, char *buffer)
+char *aq_get_fan_name(char n, char *buffer)
 {
-	return get_string(buffer, FAN_NAME_OFFS + (n * (FAN_NAME_LEN + 1)),
-			FAN_NAME_LEN);
+	return aq_get_string(buffer, AQ_FAN_NAME_OFFS + (n * (AQ_FAN_NAME_LEN + 1)),
+			AQ_FAN_NAME_LEN);
 }
 
-ushort get_fan_rpm(char n, char *buffer)
+ushort aq_get_fan_rpm(char n, char *buffer)
 {
 	/* TODO: handle disconnected fans */
-	return get_short(buffer, FAN_RPM_OFFS + (n * FAN_RPM_LEN));
+	return aq_get_short(buffer, AQ_FAN_RPM_OFFS + (n * AQ_FAN_RPM_LEN));
 }
 
-char get_fan_duty(char n, char *buffer)
+char aq_get_fan_duty(char n, char *buffer)
 {
 	/* TODO: simplify */
 	unsigned char t;
 	unsigned short s;
 
-	t = *(buffer + FAN_PWR_OFFS + (n * FAN_PWR_LEN));
+	t = *(buffer + AQ_FAN_PWR_OFFS + (n * AQ_FAN_PWR_LEN));
 	s = (t * 100) >> 8;
 
 	return (char)s;
 }
 
-char *get_temp_name(char n, char *buffer)
+char *aq_get_temp_name(char n, char *buffer)
 {
-	return get_string(buffer, TEMP_NAME_OFFS + (n * (TEMP_NAME_LEN + 1)),
-			TEMP_NAME_LEN);
+	return aq_get_string(buffer, AQ_TEMP_NAME_OFFS + (n *
+			(AQ_TEMP_NAME_LEN + 1)), AQ_TEMP_NAME_LEN);
 }
 
-double get_temp_value(char n, char *buffer)
+double aq_get_temp_value(char n, char *buffer)
 {
 	unsigned short c;
 
-	c = get_short(buffer, TEMP_VAL_OFFS + (n * TEMP_VAL_LEN));
+	c = aq_get_short(buffer, AQ_TEMP_VAL_OFFS + (n * AQ_TEMP_VAL_LEN));
 
-	return (c != TEMP_NAN) ? (double)c / 10 : -1;
+	return (c != AQ_TEMP_NAN) ? (double)c / 10 : -1;
 }
 
-ushort get_serial(char *buffer)
+ushort aq_get_serial(char *buffer)
 {
-	return get_short(buffer, DEV_SERIAL_OFFS);
+	return aq_get_short(buffer, AQ_DEV_SERIAL_OFFS);
+}
+
+struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)
+{
+	int		i;
+	char 	*raw_data;
+	struct 	usb_dev_handle *dev_handle;
+	struct	aquaero_data *ret_data;
+
+	/* search device if not specified */
+	if (aq_usb_dev == NULL) {
+		if ((aq_usb_dev = aq_dev_find()) == NULL) {
+			*err_msg = "no aquaero(R) device found";
+			return NULL;
+		}
+	}
+	/* initialize device */
+	if ((dev_handle = aq_dev_init(err_msg)) == NULL) {
+		return NULL;
+	}
+	/* prepare data structure */
+	if ((ret_data = malloc(sizeof(struct aquaero_data))) == NULL) {
+		*err_msg = "out-of-memory allocating data structure";
+		return NULL;
+	}
+	/* prepare data buffer */
+	if (buffer == NULL) {
+		if ((raw_data = malloc(AQ_BUFFS)) == NULL) {
+			*err_msg = "out-of-memory allocating data buffer";
+			return NULL;
+		}
+	} else {
+		raw_data = buffer;
+	}
+
+	/* poll raw data */
+	if ((i = aq_dev_read(dev_handle, raw_data)) < 0) {
+		if (buffer == NULL) {
+			free(raw_data);
+		}
+		/*TODO: bring in error code */
+		*err_msg = "failed to read from device";
+		return NULL;
+	}
+	aq_dev_close(dev_handle);
+
+	/* process data, fill structure */
+	ret_data->device_name = strdup(aq_get_name(raw_data));
+	ret_data->firmware = strdup(aq_get_fw(raw_data));
+	ret_data->prod_year = aq_get_prod_year(raw_data);
+	ret_data->prod_month = aq_get_prod_month(raw_data);
+	ret_data->device_serial = aq_get_serial(raw_data);
+	ret_data->flash_count = aq_get_flash_count(raw_data);
+	ret_data->os_version = aq_get_os_version(raw_data);
+	for (i = 0; i < AQ_FAN_NUM; i++) {
+		ret_data->fan_names[i] = strdup(aq_get_fan_name(i, raw_data));
+		ret_data->fan_rpm[i] = aq_get_fan_rpm(i, raw_data);
+		ret_data->fan_duty[i] = aq_get_fan_duty(i, raw_data);
+	}
+	for (i = 0; i < AQ_TEMP_NUM; i++) {
+		ret_data->temp_names[i] = strdup(aq_get_temp_name(i, raw_data));
+		ret_data->temp_values[i] = aq_get_temp_value(i, raw_data);
+	}
+
+	/* our own allocated data buffer, free */
+	if (buffer == NULL) {
+		free(raw_data);
+	}
+
+	return ret_data;
 }

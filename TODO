@@ -1,11 +1,16 @@
- - add "-n" switch for "-f" and "-s" to suppress units, for easy
-   integration in bash-scripts, graph-drawing, etc.
 
- - replace arg parsing with stdopts
- 
- - think about MAX_LINE, for security reasons
- 
- - implement time synchronization (as the only non-read-only
-   function)
+ - [device]     merge dev_init(), dev_read(), dev_close()
 
- - lots of refactoring ;)
+ - [aerod]      reorganize logging and termination
+
+ - [aerocli]    add "-n" switch for "-f" and "-s" to suppress units, for easy
+                integration in bash-scripts, graph-drawing, etc.
+
+ - [aerocli,aerod] replace arg-parsing with stdopts
+ 
+ - [all]        implement time synchronization (as the only non-read-only 
+                function)
+ 
+ - [doc]        update README!
+   
+ - [all]        lots of refactoring ;)

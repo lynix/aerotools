@@ -58,12 +58,15 @@ struct options {
 void print_help();
 void init_opts();
 void parse_cmdline(int argc, char *argv[]);
-void err_msg(int prio, char *msg, ...);
+void log_msg(int prio, char *msg, ...);
+void err_die(char *msg, ...);
 void signal_handler(int signal);
 void send_data();
 void die();
-void *tcp_serve();
+int	 tcp_start_server();
+void *tcp_handler();
 int	 poll_data();
+char *poll_aquaero(char **err_msg);
 char *poll_hddtemp(char *host, unsigned short port);
 int	 write_pidfile(int pid);
 

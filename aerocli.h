@@ -48,5 +48,6 @@ void err_msg(char *msg, ...);
 void init_opts(struct options *opts);
 void print_heading(char *text);
 void parse_cmdline(struct options *opts, int argc, char *argv[]);
+void dump_data(char *file, char *buffer, int buffsize);
 
 #endif /* AEROCLI_H_ */

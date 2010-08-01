@@ -20,16 +20,15 @@
 
 /* globals */
 int     		server_sock;
-char			*data_buffer, *hddtemp_data;
+char			*data_str;
 struct			options opts;
-pthread_mutex_t data_buffer_lock;
+pthread_mutex_t data_lock;
 
 int main(int argc, char *argv[])
 {
-	int			pid, sid;
-	const int	one = 1;
-	struct		sockaddr_in server_addr;
-	pthread_t	tcp_thread;
+	int				pid;
+	pthread_t		tcp_thread;
+	extern struct 	usb_device *aq_usb_dev;
 
     /* parse cmdline arguments */
     init_opts();
@@ -41,22 +40,30 @@ int main(int argc, char *argv[])
     	switch (pid) {
     		case -1:
 				/* fork failure */
-				err_msg(LOG_ERR, "failed to fork into background");
+				log_msg(LOG_ERR, "failed to fork into background: %s",
+						strerror(errno));
 				exit(EXIT_FAILURE);
 				break;
     		case 0:
     			/* child */
-    			sid = setsid();
-    			err_msg(LOG_INFO, "started by user %d", getuid());
+    			setsid();
+    			log_msg(LOG_INFO, "started by user %d", getuid());
     			break;
     		default:
     			/* parent */
-    			if (write_pidfile(pid) != 0) {
-    				err_msg(LOG_ERR, "failed to write pidfile (%s)", PID_FILE);
-    			}
     			exit(EXIT_SUCCESS);
     			break;
     	}
+    }
+
+    /* write pid-file */
+    if (write_pidfile(getpid()) != 0) {
+        log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE, strerror(errno));
+    }
+
+    /* search aquaero(R) device */
+    if ((aq_usb_dev = aq_dev_find()) == NULL) {
+    	err_die("no aquaero(R) device found, terminating");
     }
 
     /* register signals */
@@ -66,124 +73,59 @@ int main(int argc, char *argv[])
     signal(SIGQUIT, signal_handler);
 
     /* setup data sync mutex */
-    if (pthread_mutex_init(&data_buffer_lock, NULL) != 0) {
-    	err_msg(LOG_ERR, "failed to setup mutex, terminating");
-    	exit(EXIT_FAILURE);
+    if (pthread_mutex_init(&data_lock, NULL) != 0) {
+    	err_die("failed to setup mutex, terminating");
 	}
 
     /* initial poll */
     if (poll_data() != 0) {
-    	exit(EXIT_FAILURE);
-    }
-
-    /* start TCP server */
-	if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
-		err_msg(LOG_ERR, "error creating server socket, terminating");
-		exit(EXIT_FAILURE);
-    }
-	setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-	memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port  = htons(opts.port);
-    if (bind(server_sock, (struct sockaddr *)&server_addr,
-    		sizeof(server_addr)) < 0) {
-    	err_msg(LOG_ERR, "error binding server socket: %s", strerror(errno));
     	die();
     }
-	if (listen(server_sock, Q_LENGTH) < 0) {
-		err_msg(LOG_ERR, "error started listening, terminating");
-		die();
-	} else {
-		err_msg(LOG_INFO, "listening on port %d", opts.port);
+
+    /* start tcp server, spawn handler thread */
+	if (tcp_start_server() != 0) {
+		err_die("error opening tcp server socket, terminating");
 	}
-	if (pthread_create(&tcp_thread, NULL, tcp_serve, NULL) != 0) {
-		err_msg(LOG_ERR, "error spawning listen-thread, terminating");
-		die();
+	if (pthread_create(&tcp_thread, NULL, tcp_handler, NULL) != 0) {
+		err_die("error spawning listen-thread, terminating");
+	} else {
+		log_msg(LOG_INFO, "listening on port %d", opts.port);
 	}
 
 	/* start infinite polling-loop */
 	while (1) {
 		if (poll_data() != 0) {
-			err_msg(LOG_ERR, "failed to read from device, terminating");
 			die();
 		}
 		sleep(opts.interval);
 	}
 }
 
-int poll_data()
+int tcp_start_server()
 {
-	char 	*raw_buffer, *temp_data, *position, *error, i;
-	struct	usb_device *aq_dev;
-	struct 	usb_dev_handle *aq_handle;
-	double 	d;
+	const int	one = 1;
+	struct		sockaddr_in server_addr;
 
-	/* setup read buffer */
-	if ((raw_buffer = malloc(BUFFS)) == NULL) {
+	if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
 		return -1;
 	}
-
-	/* setup device, read raw data */
-	error = NULL;
-	if ((aq_dev = dev_find()) == NULL) {
-		err_msg(LOG_ERR, "no aquaero device found, terminating");
+	setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	memset(&server_addr, 0, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	server_addr.sin_port  = htons(opts.port);
+	if (bind(server_sock, (struct sockaddr *)&server_addr,
+			sizeof(server_addr)) < 0) {
 		return -1;
 	}
-	if ((aq_handle = dev_init(aq_dev, &error)) == NULL) {
-		err_msg(LOG_ERR, "failed to initialize device (%s), terminating",
-				error);
+	if (listen(server_sock, Q_LENGTH) < 0) {
 		return -1;
 	}
-	if (dev_read(aq_handle, raw_buffer) < 0) {
-		dev_close(aq_handle);
-		return -1;
-	}
-	dev_close(aq_handle);
-
-	/* process data */
-	if ((temp_data = malloc(MAX_LINE)) == NULL) {
-		free(raw_buffer);
-		return -1;
-	}
-	position = temp_data;
-	for (i = 0; i < TEMP_NUM; i++) {
-		if ((d = get_temp_value(i, raw_buffer)) != TEMP_NCONN) {
-			sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
-					get_temp_name(i, raw_buffer), d);
-			position = temp_data + strlen(temp_data);
-		}
-	}
-
-	/* hddtemp query */
-	if (opts.hddtemp) {
-		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL) {
-			err_msg(LOG_ERR, "failed to retrieve data from hddtemp");
-		} else {
-			sprintf(position, "%s", hddtemp_data);
-			position = temp_data + strlen(temp_data);
-			free(hddtemp_data);
-			hddtemp_data = NULL;
-		}
-	}
-
-	temp_data = realloc(temp_data, strlen(temp_data)+1);
-
-	/* begin critical section for data_buffer */
-	pthread_mutex_lock(&data_buffer_lock);
-	if (data_buffer != NULL) {
-		free(data_buffer);
-	}
-	data_buffer = temp_data;
-	pthread_mutex_unlock(&data_buffer_lock);
-	/* end critical section for data_buffer*/
-
-	free(raw_buffer);
 
 	return 0;
 }
 
-void *tcp_serve()
+void *tcp_handler()
 {
 	int connection_sock = -1;
 
@@ -191,13 +133,91 @@ void *tcp_serve()
 		if ((connection_sock = accept(server_sock, NULL, NULL)) < 0) {
 		    break;
 		}
-		pthread_mutex_lock(&data_buffer_lock);
-		send(connection_sock, data_buffer, strlen(data_buffer), 0);
-		pthread_mutex_unlock(&data_buffer_lock);
+		pthread_mutex_lock(&data_lock);
+		send(connection_sock, data_str, strlen(data_str), 0);
+		pthread_mutex_unlock(&data_lock);
 		close(connection_sock);
 	}
 
 	return NULL;
+}
+
+int poll_data()
+{
+	char *aquaero_data, *hddtemp_data, *err_msg;
+
+	if ((aquaero_data = poll_aquaero(&err_msg)) == NULL) {
+		log_msg(LOG_ERR, "error reading from aquaero(R): %s", err_msg);
+		aquaero_data = "";
+		//return -1;
+	}
+	if (opts.hddtemp) {
+		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL) {
+			log_msg(LOG_ERR, "failed to retrieve data from hddtemp");
+		} else {
+			if ((aquaero_data = realloc(aquaero_data, strlen(aquaero_data) +
+					strlen(hddtemp_data) + 1)) == NULL) {
+				log_msg(LOG_ERR, "out-of-memory concatenating data strings");
+				return -1;
+			}
+			strcat(aquaero_data, hddtemp_data);
+			free(hddtemp_data);
+		}
+	}
+
+	pthread_mutex_lock(&data_lock);
+	free(data_str);
+	data_str = aquaero_data;
+	pthread_mutex_unlock(&data_lock);
+
+	return 0;
+}
+
+char *poll_aquaero(char **err_msg)
+{
+	struct 	aquaero_data *aq_data;
+	int		i;
+	char 	*tmp_data_str, *position, *temp_line;
+	double 	d;
+
+	/* setup device, read raw data */
+	if ((aq_data = aquaero_poll_data(NULL, err_msg)) == NULL) {
+		return NULL;
+	}
+
+	/* process data */
+	tmp_data_str = NULL;
+	if ((temp_line = malloc(50)) == NULL) {
+		free(aq_data);
+		free(tmp_data_str);
+		return NULL;
+	}
+
+	position = tmp_data_str;
+	for (i = 0; i < AQ_TEMP_NUM; i++) {
+		if ((d = aq_data->temp_values[i]) == AQ_TEMP_NCONN) {
+			continue;
+		}
+		sprintf(temp_line, "|/dev/temp%d|%s|%.0f|C|", i+1,
+				aq_data->temp_names[i], d);
+		if (tmp_data_str == NULL) {
+			tmp_data_str = strdup(temp_line);
+		} else {
+			if ((tmp_data_str = realloc(tmp_data_str, strlen(temp_line) +
+					strlen(tmp_data_str) + 1)) == NULL) {
+				free(tmp_data_str);
+				free(aq_data);
+				free(temp_line);
+				return NULL;
+			}
+			strcat(tmp_data_str, temp_line);
+		}
+	}
+
+	free(temp_line);
+	free(aq_data);
+
+	return tmp_data_str;
 }
 
 char *poll_hddtemp(char *host, unsigned short port)
@@ -244,10 +264,11 @@ int write_pidfile(int pid)
 {
 	FILE *file;
 
-	if ((file = fopen(PID_FILE, "w")) != NULL) {
-		fprintf(file, "%d", pid);
-		fclose(file);
-	} else return -1;
+	if ((file = fopen(PID_FILE, "w")) == NULL) {
+		return -1;
+	}
+	fprintf(file, "%d", pid);
+	fclose(file);
 
 	return 0;
 }
@@ -256,15 +277,15 @@ void signal_handler(int signal)
 {
 	switch(signal) {
 		case SIGTERM:
-			err_msg(LOG_WARNING, "received SIGTERM signal, terminating");
+			log_msg(LOG_WARNING, "received SIGTERM signal, terminating");
 			die();
 			break;
 		case SIGINT:
-			err_msg(LOG_WARNING, "received SIGINT signal, terminating");
+			log_msg(LOG_WARNING, "received SIGINT signal, terminating");
 			die();
 			break;
 		default:
-			err_msg(LOG_WARNING, "unhandled signal %d", signal);
+			log_msg(LOG_WARNING, "unhandled signal %d", signal);
 			break;
 	}
 
@@ -273,7 +294,6 @@ void signal_handler(int signal)
 
 void die()
 {
-	shutdown(server_sock, 2);
 	close(server_sock);
 	closelog();
 	unlink(PID_FILE);
@@ -313,7 +333,7 @@ void parse_cmdline(int argc, char *argv[])
 			case 'p':
 				n = atoi(argv[i] + 3);
 				if (n < 1 || n > 65535) {
-					err_msg(0, "invalid port: %d", n);
+					log_msg(0, "invalid port: %d", n);
 					exit(EXIT_FAILURE);
 				}
 				opts.port = n;
@@ -321,13 +341,13 @@ void parse_cmdline(int argc, char *argv[])
 			case 'i':
 				n = atoi(argv[i] + 3);
 				if (n < INTERVAL_MIN || n > INTERVAL_MAX) {
-					err_msg(0, "invalid interval: %d", n);
+					log_msg(0, "invalid interval: %d", n);
 					exit(EXIT_FAILURE);
 				}
 				opts.interval = n;
 				break;
 			default:
-				err_msg(0, "invalid arguments. Try -h for help.");
+				log_msg(0, "invalid arguments. Try -h for help.");
 				break;
 		}
 	}
@@ -335,21 +355,32 @@ void parse_cmdline(int argc, char *argv[])
 	return;
 }
 
-void err_msg(int prio, char *msg, ...)
+void log_msg(int prio, char *msg, ...)
+{
+	FILE *out_fp;
+	va_list argpointer;
+
+	va_start(argpointer, msg);
+	if (opts.fork) {
+		vsyslog(prio|LOG_DAEMON, msg, argpointer);
+	} else {
+		out_fp = (prio < LOG_NOTICE) ? stderr : stdout;
+		fprintf(out_fp, "%s: ", PROGN);
+		vfprintf(out_fp, msg, argpointer);
+		fprintf(out_fp, "\n");
+		fflush(out_fp);
+	}
+
+	return;
+}
+
+void err_die(char *msg, ...)
 {
 	va_list argpointer;
 
 	va_start(argpointer, msg);
-	if (opts.fork && (prio > 0)) {
-		vsyslog(prio|LOG_DAEMON, msg, argpointer);
-	} else {
-		fprintf(stderr, "%s: ", PROGN);
-		vfprintf(stderr, msg, argpointer);
-		fprintf(stderr, "\n");
-		fflush(stderr);
-	}
-
-	return;
+	log_msg(LOG_ERR, msg, argpointer);
+	die();
 }
 
 void print_help()
