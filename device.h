@@ -32,7 +32,6 @@
 #define AQ_USB_RETRIES			3
 #define AQ_USB_RETRY_DELAY		200
 #define AQ_BUFFS				553
-#define AQ_ENODATA				-61
 
 /* data offsets and formatting constants */
 #define AQ_DEV_FW_LEN			5
@@ -77,9 +76,7 @@ struct aquaero_data {
 
 /* device communication */
 struct 	usb_device *aq_dev_find();
-struct 	usb_dev_handle *aq_dev_init(char **err);
-int		aq_dev_read(struct usb_dev_handle *devh, char *buffer);
-int		aq_dev_close(struct usb_dev_handle *devh);
+int		aq_dev_poll(char *buffer, char **err);
 
 /* data processing */
 ushort	aq_get_short(char *buffer, int offset);

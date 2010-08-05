@@ -17,6 +17,7 @@
  */
 
 #include "device.h"
+#include <errno.h>
 
 /* globals */
 struct usb_device *aq_usb_dev = NULL;
@@ -45,47 +46,77 @@ struct usb_device *aq_dev_find()
 	return ret;
 }
 
-struct usb_dev_handle *aq_dev_init(char **err)
+int aq_dev_poll(char *buffer, char **err)
 {
 	struct usb_dev_handle *handle;
-	int v;
+	int i, n;
+
+	if (aq_usb_dev == NULL)
+		if ((aq_usb_dev = aq_dev_find()) == NULL) {
+			*err = "no aquaero(R) device found";
+			return -1;
+		}
 
 	if ((handle = usb_open(aq_usb_dev)) == NULL) {
 	    *err = "failed to open device";
-	    return NULL;
+	    return -1;
 	}
-	if ((v = usb_detach_kernel_driver_np(handle, 0)) < 0) {
-		if (v != AQ_ENODATA) {
-			*err = "failed to dispatch kernel driver";
-			usb_close(handle);
-			return NULL;
-		} /* ENODATA means no kernel driver present, nothing to detach */
-	}
-	/* TODO: implement retrying (AQ_USB_RETRIES, AQ_USB_RETRY_DELAY */
-	if (usb_set_configuration(handle, AQ_USB_CONF) < 0) {
-		*err = "failed to set configuration";
-		usb_close(handle);
-		return NULL;
-	}
-	/* TODO: handle EBUSY (see libusb trac wiki page) */
-	if (usb_claim_interface(handle, 0) < 0) {
-		*err = "failed to claim interface";
-		usb_close(handle);
-		return NULL;
+	if ((i = usb_detach_kernel_driver_np(handle, 0)) < 0)
+		if (i != -ENODATA) {
+			if (i == -EPERM)
+				*err = "failed to detach kernel driver (permission denied)";
+			else
+				*err = "failed to detach kernel driver";
+			goto err_exit2;
+		}
+
+	if ((i = usb_set_configuration(handle, AQ_USB_CONF)) < 0) {
+		*err = "failed to set device configuration";
+		goto err_exit2;
 	}
 
-	return handle;
-}
+	if ((i = usb_claim_interface(handle, 0)) < 0) {
+		if (i == -EBUSY) {
+			n = 1;
+			while (n < AQ_USB_RETRIES) {
+				sleep(AQ_USB_RETRY_DELAY);
+				i = usb_claim_interface(handle, 0);
+				if (i != -EBUSY)
+					break;
+			}
+		}
+		if (i < 0) {
+			if (i == -EBUSY)
+				*err = "failed to claim interface (device busy)";
+			else
+				*err = "failed to claim interface";
+			goto err_exit2;
+		}
+	}
 
-int	aq_dev_read(struct usb_dev_handle *devh, char *buffer)
-{
-	return usb_interrupt_read(devh, AQ_USB_ENDP, buffer, AQ_BUFFS,
-			AQ_USB_TIMEOUT);
-}
+	if ((i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
+			AQ_USB_TIMEOUT)) != AQ_BUFFS) {
+		n = 0;
+		while (n < AQ_USB_RETRIES) {
+			i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
+					AQ_USB_TIMEOUT);
+			if (i == AQ_BUFFS)
+				break;
+			else if (i < 0)
+				goto err_exit1;
+		}
+		if (i != AQ_BUFFS)
+			goto err_exit1;
+	}
 
-int	aq_dev_close(struct usb_dev_handle *devh)
-{
-	return usb_close(devh);
+	usb_release_interface(handle, 0);
+	usb_close(handle);
+
+	return 0;
+
+err_exit1: usb_release_interface(handle, 0);
+err_exit2: usb_close(handle);
+	return -1;
 }
 
 ushort aq_get_short(char *buffer, int offset)
@@ -185,20 +216,8 @@ struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)
 {
 	int		i;
 	char 	*raw_data;
-	struct 	usb_dev_handle *dev_handle;
 	struct	aquaero_data *ret_data;
 
-	/* search device if not specified */
-	if (aq_usb_dev == NULL) {
-		if ((aq_usb_dev = aq_dev_find()) == NULL) {
-			*err_msg = "no aquaero(R) device found";
-			return NULL;
-		}
-	}
-	/* initialize device */
-	if ((dev_handle = aq_dev_init(err_msg)) == NULL) {
-		return NULL;
-	}
 	/* prepare data structure */
 	if ((ret_data = malloc(sizeof(struct aquaero_data))) == NULL) {
 		*err_msg = "out-of-memory allocating data structure";
@@ -215,15 +234,11 @@ struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)
 	}
 
 	/* poll raw data */
-	if ((i = aq_dev_read(dev_handle, raw_data)) < 0) {
-		if (buffer == NULL) {
+	if ((i = aq_dev_poll(raw_data, err_msg)) < 0) {
+		if (buffer == NULL)
 			free(raw_data);
-		}
-		/*TODO: bring in error code */
-		*err_msg = "failed to read from device";
 		return NULL;
 	}
-	aq_dev_close(dev_handle);
 
 	/* process data, fill structure */
 	ret_data->device_name = strdup(aq_get_name(raw_data));

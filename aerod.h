@@ -52,6 +52,7 @@ struct options {
 	unsigned short 	interval;
 	unsigned int 	fork:1;
 	unsigned int	hddtemp:1;
+	unsigned int	pidfile:1;
 };
 
 /* functions */

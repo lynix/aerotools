@@ -57,8 +57,10 @@ int main(int argc, char *argv[])
     }
 
     /* write pid-file */
-    if (write_pidfile(getpid()) != 0) {
-        log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE, strerror(errno));
+    if (opts.pidfile) {
+		if (write_pidfile(getpid()) != 0) {
+			log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE, strerror(errno));
+		}
     }
 
     /* search aquaero(R) device */
@@ -149,7 +151,6 @@ int poll_data()
 	if ((aquaero_data = poll_aquaero(&err_msg)) == NULL) {
 		log_msg(LOG_ERR, "error reading from aquaero(R): %s", err_msg);
 		aquaero_data = "";
-		//return -1;
 	}
 	if (opts.hddtemp) {
 		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL) {
@@ -277,15 +278,15 @@ void signal_handler(int signal)
 {
 	switch(signal) {
 		case SIGTERM:
-			log_msg(LOG_WARNING, "received SIGTERM signal, terminating");
+			log_msg(LOG_WARNING, "received SIGTERM, terminating");
 			die();
 			break;
 		case SIGINT:
-			log_msg(LOG_WARNING, "received SIGINT signal, terminating");
+			log_msg(LOG_WARNING, "received SIGINT, terminating");
 			die();
 			break;
 		default:
-			log_msg(LOG_WARNING, "unhandled signal %d", signal);
+			log_msg(LOG_WARNING, "unhandled signal: %d", signal);
 			break;
 	}
 
@@ -307,6 +308,7 @@ void init_opts()
 	opts.interval = INTERVAL;
 	opts.fork = 1;
 	opts.hddtemp = 0;
+	opts.pidfile = 0;
 
 	return;
 }
@@ -326,6 +328,9 @@ void parse_cmdline(int argc, char *argv[])
 				break;
 			case 'F':
 				opts.fork = 0;
+				break;
+			case 'f':
+				opts.pidfile = 1;
 				break;
 			case 't':
 				opts.hddtemp = 1;
@@ -400,6 +405,7 @@ void print_help()
 	printf("  -p   port to listen to (default %d)\n", PORT);
 	printf("  -i   interval for polling in seconds (default: %d)\n", INTERVAL);
 	printf("  -F   don't daemonize, stay in foreground\n");
+	printf("  -f   write PID file (/var/run/%s.pid)", PROGN);
 	printf("  -t   query hddtemp and import results\n");
 	printf("  -h   display this usage and license information\n");
 

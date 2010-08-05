@@ -1,5 +1,5 @@
-
- - [device]     merge dev_init(), dev_read(), dev_close()
+ 
+ - [device]     clean coding style: avoid unnecessary {}, allow goto
 
  - [aerod]      reorganize logging and termination
 
