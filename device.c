@@ -22,103 +22,6 @@
 /* globals */
 struct usb_device *aq_usb_dev = NULL;
 
-
-struct usb_device *aq_dev_find()
-{
-	struct usb_bus *bus;
-	struct usb_device *dev, *ret;
-
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
-
-	ret = NULL;
-
-	for (bus = usb_busses; bus; bus = bus->next) {
-		for (dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == AQ_USB_VID) &&
-					(dev->descriptor.idProduct == AQ_USB_PID)) {
-				ret = dev;
-			}
-		}
-	}
-
-	return ret;
-}
-
-int aq_dev_poll(char *buffer, char **err)
-{
-	struct usb_dev_handle *handle;
-	int i, n;
-
-	if (aq_usb_dev == NULL)
-		if ((aq_usb_dev = aq_dev_find()) == NULL) {
-			*err = "no aquaero(R) device found";
-			return -1;
-		}
-
-	if ((handle = usb_open(aq_usb_dev)) == NULL) {
-	    *err = "failed to open device";
-	    return -1;
-	}
-	if ((i = usb_detach_kernel_driver_np(handle, 0)) < 0)
-		if (i != -ENODATA) {
-			if (i == -EPERM)
-				*err = "failed to detach kernel driver (permission denied)";
-			else
-				*err = "failed to detach kernel driver";
-			goto err_exit2;
-		}
-
-	if ((i = usb_set_configuration(handle, AQ_USB_CONF)) < 0) {
-		*err = "failed to set device configuration";
-		goto err_exit2;
-	}
-
-	if ((i = usb_claim_interface(handle, 0)) < 0) {
-		if (i == -EBUSY) {
-			n = 1;
-			while (n < AQ_USB_RETRIES) {
-				sleep(AQ_USB_RETRY_DELAY);
-				i = usb_claim_interface(handle, 0);
-				if (i != -EBUSY)
-					break;
-			}
-		}
-		if (i < 0) {
-			if (i == -EBUSY)
-				*err = "failed to claim interface (device busy)";
-			else
-				*err = "failed to claim interface";
-			goto err_exit2;
-		}
-	}
-
-	if ((i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
-			AQ_USB_TIMEOUT)) != AQ_BUFFS) {
-		n = 0;
-		while (n < AQ_USB_RETRIES) {
-			i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
-					AQ_USB_TIMEOUT);
-			if (i == AQ_BUFFS)
-				break;
-			else if (i < 0)
-				goto err_exit1;
-		}
-		if (i != AQ_BUFFS)
-			goto err_exit1;
-	}
-
-	usb_release_interface(handle, 0);
-	usb_close(handle);
-
-	return 0;
-
-err_exit1: usb_release_interface(handle, 0);
-err_exit2: usb_close(handle);
-	return -1;
-}
-
 ushort aq_get_short(char *buffer, int offset)
 {
 	return (((unsigned char)buffer[offset]) << 8) +
@@ -183,8 +86,8 @@ ushort aq_get_fan_rpm(char n, char *buffer)
 char aq_get_fan_duty(char n, char *buffer)
 {
 	/* TODO: simplify */
-	unsigned char t;
-	unsigned short s;
+	unsigned char 	t;
+	unsigned short 	s;
 
 	t = *(buffer + AQ_FAN_PWR_OFFS + (n * AQ_FAN_PWR_LEN));
 	s = (t * 100) >> 8;
@@ -210,6 +113,105 @@ double aq_get_temp_value(char n, char *buffer)
 ushort aq_get_serial(char *buffer)
 {
 	return aq_get_short(buffer, AQ_DEV_SERIAL_OFFS);
+}
+
+struct usb_device *aq_dev_find()
+{
+	struct usb_bus 		*bus;
+	struct usb_device 	*dev, *ret;
+
+	usb_init();
+	usb_find_busses();
+	usb_find_devices();
+
+	ret = NULL;
+
+	for (bus = usb_busses; bus; bus = bus->next) {
+		for (dev = bus->devices; dev; dev = dev->next) {
+			if ((dev->descriptor.idVendor == AQ_USB_VID) &&
+					(dev->descriptor.idProduct == AQ_USB_PID)) {
+				ret = dev;
+			}
+		}
+	}
+
+	return ret;
+}
+
+int aq_dev_poll(char *buffer, char **err)
+{
+	int 	i, n;
+	struct 	usb_dev_handle *handle;
+
+	/* search device if not yet found */
+	if (aq_usb_dev == NULL) {
+		if ((aq_usb_dev = aq_dev_find()) == NULL) {
+			*err = "no aquaero(R) device found";
+			return -1;
+		}
+	}
+
+	/* USB device initialization and configuration */
+	if ((handle = usb_open(aq_usb_dev)) == NULL) {
+	    *err = "failed to open device";
+	    return -1;
+	}
+	if ((i = usb_detach_kernel_driver_np(handle, 0)) < 0) {
+		if (i != -ENODATA) {
+			if (i == -EPERM)
+				*err = "failed to detach kernel driver (permission denied)";
+			else
+				*err = "failed to detach kernel driver";
+			goto err_exit2;
+		}
+	}
+	if ((i = usb_set_configuration(handle, AQ_USB_CONF)) < 0) {
+		*err = "failed to set device configuration";
+		goto err_exit2;
+	}
+
+	if ((i = usb_claim_interface(handle, 0)) < 0) {
+		if (i == -EBUSY) {
+			n = 1;
+			while (n < AQ_USB_RETRIES) {
+				sleep(AQ_USB_RETRY_DELAY);
+				i = usb_claim_interface(handle, 0);
+				if (i != -EBUSY)
+					break;
+			}
+		}
+		if (i < 0) {
+			if (i == -EBUSY)
+				*err = "failed to claim interface (device busy)";
+			else
+				*err = "failed to claim interface";
+			goto err_exit2;
+		}
+	}
+
+	if ((i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
+			AQ_USB_TIMEOUT)) != AQ_BUFFS) {
+		n = 0;
+		while (n < AQ_USB_RETRIES) {
+			i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
+					AQ_USB_TIMEOUT);
+			if (i == AQ_BUFFS)
+				break;
+			else if (i < 0)
+				goto err_exit1;
+		}
+		if (i != AQ_BUFFS)
+			goto err_exit1;
+	}
+
+	usb_release_interface(handle, 0);
+	usb_close(handle);
+
+	return 0;
+
+err_exit1: usb_release_interface(handle, 0);
+err_exit2: usb_close(handle);
+	return -1;
 }
 
 struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)

@@ -1,4 +1,6 @@
  
+ - [device]     switch to libusb1
+ 
  - [device]     clean coding style: avoid unnecessary {}, allow goto
 
  - [aerod]      reorganize logging and termination
@@ -10,7 +12,9 @@
  
  - [all]        implement time synchronization (as the only non-read-only 
                 function)
+                
+ - [device]     add documentation using Doxygen
  
- - [doc]        update README!
+ - [all]        handle disconnected fans
    
  - [all]        lots of refactoring ;)

@@ -31,7 +31,6 @@ int main(int argc, char *argv[])
 	extern struct 	usb_device *aq_usb_dev;
 
     /* parse cmdline arguments */
-    init_opts();
     parse_cmdline(argc, argv);
 
     /* daemonize */
@@ -302,26 +301,22 @@ void die()
 	exit(EXIT_SUCCESS);
 }
 
-void init_opts()
+void parse_cmdline(int argc, char *argv[])
 {
+	char 		c;
+	int			n;
+	extern int 	optind, optopt, opterr;
+
+	/* init options */
 	opts.port = PORT;
 	opts.interval = INTERVAL;
 	opts.fork = 1;
 	opts.hddtemp = 0;
 	opts.pidfile = 0;
 
-	return;
-}
-
-void parse_cmdline(int argc, char *argv[])
-{
-	int i, n;
-
-	for (i = 1; i < argc; i++) {
-		if (*(argv[i]) != '-') {
-			continue;
-		}
-		switch (*(argv[i]+1)) {
+	/* parse cmdline */
+	while ((c = getopt(argc, argv, "hFftp:i:")) != -1) {
+		switch (c) {
 			case 'h':
 				print_help();
 				exit(EXIT_SUCCESS);
@@ -336,24 +331,33 @@ void parse_cmdline(int argc, char *argv[])
 				opts.hddtemp = 1;
 				break;
 			case 'p':
-				n = atoi(argv[i] + 3);
+				n = atoi(optarg);
 				if (n < 1 || n > 65535) {
-					log_msg(0, "invalid port: %d", n);
+					log_msg(LOG_ERR, "invalid port: %d", n);
 					exit(EXIT_FAILURE);
 				}
 				opts.port = n;
 				break;
 			case 'i':
-				n = atoi(argv[i] + 3);
+				n = atoi(optarg);
 				if (n < INTERVAL_MIN || n > INTERVAL_MAX) {
-					log_msg(0, "invalid interval: %d", n);
+					log_msg(LOG_ERR, "invalid interval: %d", n);
 					exit(EXIT_FAILURE);
 				}
 				opts.interval = n;
 				break;
+	        case '?':
+	        	if (optopt == 'p'|| optopt == 'i') {
+	        		fprintf (stderr, "option -%c requires an argument.\n",
+	        				optopt);
+	        	} else {
+	        		log_msg(LOG_ERR, "unknown option \"-%c\".\nTry -h for help.",
+	        				optopt);
+				}
+				exit(EXIT_FAILURE);
 			default:
-				log_msg(0, "invalid arguments. Try -h for help.");
-				break;
+				log_msg(LOG_ERR, "invalid arguments. Try -h for help.");
+				exit(EXIT_FAILURE);
 		}
 	}
 

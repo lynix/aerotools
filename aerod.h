@@ -29,6 +29,7 @@
 #include <sys/types.h>				/* socket types			*/
 #include <arpa/inet.h>				/* inet funtions		*/
 #include <string.h>					/* strlen()				*/
+#include <getopt.h>					/* getopt()				*/
 #include <errno.h>					/* errno				*/
 #include <signal.h>					/* signal handling		*/
 

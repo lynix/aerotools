@@ -1,6 +1,6 @@
 
-            aerotools: CLI for the aquaero(R) 4.0 USB device
-           --------------------------------------------------
+           aerotools: tools for the aquaero(R) 4.0 USB device
+          ----------------------------------------------------
         
                    (C) 2010 by lynix <lynix47@gmail.com>
         
@@ -8,14 +8,35 @@
 
 SUMMARY
 ----------------
-aerotools is a collection of command-line tools for getting status information
-via USB from the auqaero(R) 4.0 USB device (see AQUAERO). It currently consists
-of a client (aerocli, see CLIENT) and a server daemon (aerod, see SERVER).
+aerotools is a collection of linux programs for getting status information via
+USB from the aquaero(R) 4.0 USB device (see AQUAERO). It currently consists of
+a CLI (see AEROCLI), a daemon (see AEROD) and a library for the device
+communication, which the cli and daemon are built on top of.
 
 aerotools is neither supposed to be a replacement for the existing 'aeinfo' (see
-AEINFO), nor to be a complete linux interface for the device. It was written
-to retrieve sensor data from the aquaero(R) device, and easily integrate it
-into bash-scripts or conky. Nothing more, nothing less.
+AEINFO), nor to be a complete linux interface for the device. It was written for
+retrieving data (sensors, device serial, etc.) from the aquaero(R) device, and
+easily integrating it into bash-scripts or conky. Nothing more, nothing less.
+
+
+AEROCLI
+----------------
+aerocli can be used to query all useful information the aquaero(R) device holds
+("useful" is subjective here, of course) in a non-interactive way, and thus may
+be easily integrated in scipts.
+
+
+AEROD
+----------------
+The daemon, aerod, was written to integrate the data read from the aquaero(R)
+device in any application that can query hddtemp (e.g. using '${hddtemp}' in
+conky). Sensor names are represented as virtual nodes under /dev (e.g.
+/dev/temp3) for the third temperature sensor.
+As hddtemp only provides integers, the reported values are not as precise as
+the aquaero(R) provides them.
+
+aerod can act as a transparent proxy for an existing hddtemp instance, so you
+don't loose your hddtemp data when using aerod.
 
 
 AQUAERO
@@ -28,29 +49,12 @@ information about the device on their website.
 
 AEINFO
 ----------------
-aeinfo is the original linux software, the aquaero comes shipped with. It was
+aeinfo is the original linux software, the aquaero(R) comes shipped with. It was
 written in C++ by Christian Unger <coder@breakbe.at>. The development seems
 currently freezed. You can find more information about aeinfo on the development
 website, http://breakbe.at/development/aquaero/.
 Unlike aerotools, it was designed to allow not only querying but also changing
 settings on the aquaero(R) device.
-
-
-CLIENT
-----------------
-The client, aerocli, can be used to query all useful information the aquaero(R)
-device holds ("useful" is subjective here, of course) in a non-interactive way,
-and may be easily integrated in scipts.
-
-
-SERVER
-----------------
-The server, aerod, was written to integrate the data read from the aquaero(R)
-device in conky. It behaves exactly like hddtemp, and can therefore be queried
-using conky's ${hddtemp} keyword. Sensor names are represented as virtual nodes
-under /dev, e.g. /dev/temp3 for the third temperature sensor.
-As hddtemp only provides integers, the reported values are not as precise as
-the aquaero(R) can read them.
 
 
 CONTACT
