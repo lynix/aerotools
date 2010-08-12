@@ -19,6 +19,13 @@ retrieving data (sensors, device serial, etc.) from the aquaero(R) device, and
 easily integrating it into bash-scripts or conky. Nothing more, nothing less.
 
 
+REQUIREMENTS
+----------------
+The device library depends on libusb-1.0 (which is the current stable version,
+according to http://www.libusb.org).
+There are no other dependencies - except glibc, of course.
+
+
 AEROCLI
 ----------------
 aerocli can be used to query all useful information the aquaero(R) device holds
