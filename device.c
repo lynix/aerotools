@@ -20,7 +20,7 @@
 #include <errno.h>
 
 /* globals */
-struct usb_device *aq_usb_dev = NULL;
+libusb_device *aq_usb_dev = NULL;
 
 ushort aq_get_short(char *buffer, int offset)
 {
@@ -115,33 +115,43 @@ ushort aq_get_serial(char *buffer)
 	return aq_get_short(buffer, AQ_DEV_SERIAL_OFFS);
 }
 
-struct usb_device *aq_dev_find()
+libusb_device *aq_dev_find()
 {
-	struct usb_bus 		*bus;
-	struct usb_device 	*dev, *ret;
+	libusb_device **dev_list;
+	libusb_device *ret, *dev;
+	struct libusb_device_descriptor desc;
+	ssize_t n, i;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
+
+	if ((n = libusb_get_device_list(NULL, &dev_list)) < 0) {
+		return NULL;
+	}
 
 	ret = NULL;
-
-	for (bus = usb_busses; bus; bus = bus->next) {
-		for (dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == AQ_USB_VID) &&
-					(dev->descriptor.idProduct == AQ_USB_PID)) {
-				ret = dev;
-			}
-		}
+	for (i = 0; i < n; i++) {
+	    dev = dev_list[i];
+	    if (libusb_get_device_descriptor(dev, &desc) < 0) {
+	    	break;
+	    }
+	    if (desc.idVendor == AQ_USB_VID &&
+	    		desc.idProduct == AQ_USB_PID) {
+	        ret = dev;
+	        break;
+	    }
 	}
+	/* TODO: heavy restructuring: device must be opened before freeing the
+	 * device list, which decreases reference counters on all devices on it.
+	 */
+	libusb_free_device_list(dev_list, 0);
 
 	return ret;
 }
 
 int aq_dev_poll(char *buffer, char **err)
 {
-	int 	i, n;
-	struct 	usb_dev_handle *handle;
+	int 	i, n, transferred;
+	libusb_device_handle *handle;
 
 	/* search device if not yet found */
 	if (aq_usb_dev == NULL) {
@@ -152,12 +162,14 @@ int aq_dev_poll(char *buffer, char **err)
 	}
 
 	/* USB device initialization and configuration */
-	if ((handle = usb_open(aq_usb_dev)) == NULL) {
+	/* TODO: maybe some error handling */
+	if (libusb_open(aq_usb_dev, &handle) != 0) {
 	    *err = "failed to open device";
 	    return -1;
 	}
-	if ((i = usb_detach_kernel_driver_np(handle, 0)) < 0) {
-		if (i != -ENODATA) {
+	if (libusb_kernel_driver_active(handle, 0)) {
+		i = libusb_detach_kernel_driver(handle, 0);
+		if (i != LIBUSB_ERROR_NOT_FOUND) {
 			if (i == -EPERM)
 				*err = "failed to detach kernel driver (permission denied)";
 			else
@@ -165,23 +177,44 @@ int aq_dev_poll(char *buffer, char **err)
 			goto err_exit2;
 		}
 	}
-	if ((i = usb_set_configuration(handle, AQ_USB_CONF)) < 0) {
-		*err = "failed to set device configuration";
+	if (libusb_get_configuration(handle, &i) != 0) {
+		*err = "failed to get current configuration";
 		goto err_exit2;
 	}
-
-	if ((i = usb_claim_interface(handle, 0)) < 0) {
-		if (i == -EBUSY) {
+	if (i != AQ_USB_CONF) {
+		if ((i = libusb_set_configuration(handle, AQ_USB_CONF)) < 0) {
+			*err = "failed to set device configuration";
+			goto err_exit2;
+		} else if (i == LIBUSB_ERROR_BUSY) {
 			n = 1;
 			while (n < AQ_USB_RETRIES) {
 				sleep(AQ_USB_RETRY_DELAY);
-				i = usb_claim_interface(handle, 0);
-				if (i != -EBUSY)
+				i = libusb_set_configuration(handle, AQ_USB_CONF);
+				if (i != LIBUSB_ERROR_BUSY)
+					break;
+			}
+			if (i == LIBUSB_ERROR_BUSY) {
+				*err = "failed to set device configuration (device busy)";
+				goto err_exit2;
+			} else if (i != 0) {
+				*err = "failed to set device configuration";
+				goto err_exit2;
+			}
+		}
+	}
+
+	if ((i = libusb_claim_interface(handle, 0)) < 0) {
+		if (i == LIBUSB_ERROR_BUSY) {
+			n = 1;
+			while (n < AQ_USB_RETRIES) {
+				sleep(AQ_USB_RETRY_DELAY);
+				i = libusb_claim_interface(handle, 0);
+				if (i != LIBUSB_ERROR_BUSY)
 					break;
 			}
 		}
 		if (i < 0) {
-			if (i == -EBUSY)
+			if (i == LIBUSB_ERROR_BUSY)
 				*err = "failed to claim interface (device busy)";
 			else
 				*err = "failed to claim interface";
@@ -189,28 +222,20 @@ int aq_dev_poll(char *buffer, char **err)
 		}
 	}
 
-	if ((i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
-			AQ_USB_TIMEOUT)) != AQ_BUFFS) {
-		n = 0;
-		while (n < AQ_USB_RETRIES) {
-			i = usb_interrupt_read(handle, AQ_USB_ENDP, buffer, AQ_BUFFS,
-					AQ_USB_TIMEOUT);
-			if (i == AQ_BUFFS)
-				break;
-			else if (i < 0)
-				goto err_exit1;
-		}
-		if (i != AQ_BUFFS)
-			goto err_exit1;
+	if ((i = libusb_interrupt_transfer(handle, AQ_USB_ENDP, buffer, AQ_USB_READ_LEN,
+			&transferred, AQ_USB_TIMEOUT)) != 0) {
+		*err = "failed to read from device";
+		printf("interrupt transfer failed, returned %d\n", i);
+		goto err_exit1;
 	}
 
-	usb_release_interface(handle, 0);
-	usb_close(handle);
+	libusb_release_interface(handle, 0);
+	libusb_close(handle);
 
 	return 0;
 
-err_exit1: usb_release_interface(handle, 0);
-err_exit2: usb_close(handle);
+err_exit1: libusb_release_interface(handle, 0);
+err_exit2: libusb_close(handle);
 	return -1;
 }
 
@@ -227,7 +252,7 @@ struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)
 	}
 	/* prepare data buffer */
 	if (buffer == NULL) {
-		if ((raw_data = malloc(AQ_BUFFS)) == NULL) {
+		if ((raw_data = malloc(AQ_USB_READ_LEN)) == NULL) {
 			*err_msg = "out-of-memory allocating data buffer";
 			return NULL;
 		}

@@ -170,8 +170,8 @@ int main(int argc, char *argv[])
     parse_cmdline(&opts, argc, argv);
 
     /* prepare data buffer */
-    if ((data_buffer = malloc(AQ_BUFFS)) == NULL) {
-    	err_die("failed to allocate %d bytes for data buffer", AQ_BUFFS);
+    if ((data_buffer = malloc(AQ_USB_READ_LEN)) == NULL) {
+    	err_die("failed to allocate %d bytes for data buffer", AQ_USB_READ_LEN);
     }
 
     /* poll data from device */
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 
     /* dump data if requested, clear buffer */
     if (opts.dump) {
-    	dump_data(opts.dump_fn, data_buffer, AQ_BUFFS);
+    	dump_data(opts.dump_fn, data_buffer, AQ_USB_READ_LEN);
     }
     free(data_buffer);
 

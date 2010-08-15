@@ -27,6 +27,8 @@
 #include <string.h>			/* strerror() */
 #include <errno.h>			/* int errno */
 #include <stdarg.h>			/* err_msg(), err_die() */
+#include <stdlib.h>			/* exit() */
+#include <unistd.h>			/* write(), close() */
 
 /* program name */
 #define PROGN				"aerocli"

@@ -5,10 +5,12 @@ DESTDIR = /usr
 all : aerocli aerod
 
 aerocli : aerocli.o device.o
-	$(CC) $(CFLAGS) -lusb $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -lusb-1.0 $(LDFLAGS) -o $@ $^
 	
 aerod : aerod.o device.o
-	$(CC) $(CFLAGS) -lusb -lpthread $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -lusb-1.0 -lpthread $(LDFLAGS) -o $@ $^
+
+device : device.o
 
 aerocli.o : aerocli.c aerocli.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<

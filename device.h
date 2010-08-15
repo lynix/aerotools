@@ -20,8 +20,11 @@
 #define DEVICE_H_
 
 /* includes */
-#include <usb.h>
+#include <libusb-1.0/libusb.h>
 #include <string.h>
+#include <stdlib.h>
+/* debugging only!: */
+#include <stdio.h>
 
 /* usb device communication related stuff */
 #define AQ_USB_VID 				0x0c70
@@ -31,7 +34,7 @@
 #define AQ_USB_TIMEOUT			1000
 #define AQ_USB_RETRIES			3
 #define AQ_USB_RETRY_DELAY		200
-#define AQ_BUFFS				553
+#define AQ_USB_READ_LEN			552
 
 /* data offsets and formatting constants */
 #define AQ_DEV_FW_LEN			5
@@ -75,7 +78,7 @@ struct aquaero_data {
 };
 
 /* device communication */
-struct 	usb_device *aq_dev_find();
+libusb_device *aq_dev_find();
 int		aq_dev_poll(char *buffer, char **err);
 
 /* data processing */
