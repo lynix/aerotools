@@ -2,127 +2,194 @@
  *
  * This file is part of aerotools.
  *
- * aerocli is free software: you can redistribute it and/or modify
+ * aerotools is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * aerocli is distributed in the hope that it will be useful,
+ * aerotools is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with aerocli. If not, see <http://www.gnu.org/licenses/>.
+ * along with aerotools. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "device.h"
-#include <errno.h>
 
-/* globals */
-libusb_device *aq_usb_dev = NULL;
 
-ushort aq_get_short(char *buffer, int offset)
+/*
+ * globals
+ */
+
+libusb_device 	*aq_usb_dev = NULL;
+uchar 			*aq_data_buffer = NULL;
+
+
+/*
+ * helper functions
+ */
+
+ushort aq_get_ushort(uchar *buffer, int offset)
 {
-	return (((unsigned char)buffer[offset]) << 8) +
-			(unsigned char)buffer[offset + 1];
+	return (((uchar)buffer[offset]) << 8) + (uchar)buffer[offset + 1];
 }
 
-char *aq_get_string(char *buffer, int offset, int max_length)
+char *aq_trim_str(uchar *buffer, int offset, int max_length)
 {
 	unsigned short i;
 
 	i = offset + max_length;
-	while ((buffer[i-1] == ' ') && (i > offset)) {
+	while (i > offset) {
+		if (buffer[i-1] != ' ')
+			break;
 		i--;
 	}
 	buffer[i] = '\0';
 
-	return buffer + offset;
+	return (char *)(buffer + offset);
 }
 
-char *aq_get_name(char *buffer)
+
+/*
+ * device-specific wrapper functions
+ */
+
+char *aq_get_name()
 {
-	return aq_get_string(buffer, AQ_DEV_NAME_OFFS, AQ_DEV_NAME_LEN);
+	if (aq_data_buffer == NULL)
+		return NULL;
+
+	return strdup(aq_trim_str(aq_data_buffer, AQ_DEV_NAME_OFFS,
+			AQ_DEV_NAME_LEN));
 }
 
-char *aq_get_fw(char *buffer)
+char *aq_get_fw()
 {
-	return aq_get_string(buffer, AQ_DEV_FW_OFFS, AQ_DEV_FW_LEN);
+	if (aq_data_buffer == NULL)
+		return NULL;
+
+	return strdup(aq_trim_str(aq_data_buffer, AQ_DEV_FW_OFFS, AQ_DEV_FW_LEN));
 }
 
-char aq_get_prod_year(char *buffer)
+uchar aq_get_prod_year()
 {
-	return buffer[AQ_DEV_PROD_Y_OFFS];
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	return aq_data_buffer[AQ_DEV_PROD_Y_OFFS];
 }
 
-char aq_get_prod_month(char *buffer)
+uchar aq_get_prod_month()
 {
-	return buffer[AQ_DEV_PROD_M_OFFS];
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	return aq_data_buffer[AQ_DEV_PROD_M_OFFS];
 }
 
-ushort aq_get_flash_count(char *buffer)
+ushort aq_get_flash_count()
 {
-	return aq_get_short(buffer, AQ_DEV_FLASHC_OFFS);
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	return aq_get_ushort(aq_data_buffer, AQ_DEV_FLASHC_OFFS);
 }
 
-ushort aq_get_os_version(char *buffer)
+ushort aq_get_os_version()
 {
-	return aq_get_short(buffer, AQ_DEV_OS_OFFS);
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	return aq_get_ushort(aq_data_buffer, AQ_DEV_OS_OFFS);
 }
 
-char *aq_get_fan_name(char n, char *buffer)
+char *aq_get_fan_name(char n)
 {
-	return aq_get_string(buffer, AQ_FAN_NAME_OFFS + (n * (AQ_FAN_NAME_LEN + 1)),
-			AQ_FAN_NAME_LEN);
+	int offset;
+
+	if (aq_data_buffer == NULL)
+		return NULL;
+
+	offset = AQ_FAN_NAME_OFFS + (n * (AQ_FAN_NAME_LEN + 1));
+
+	return strdup(aq_trim_str(aq_data_buffer, offset, AQ_FAN_NAME_LEN));
 }
 
-ushort aq_get_fan_rpm(char n, char *buffer)
+ushort aq_get_fan_rpm(char n)
 {
+	int offset;
+
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	offset = AQ_FAN_RPM_OFFS + (n * AQ_FAN_RPM_LEN);
 	/* TODO: handle disconnected fans */
-	return aq_get_short(buffer, AQ_FAN_RPM_OFFS + (n * AQ_FAN_RPM_LEN));
+
+	return aq_get_ushort(aq_data_buffer, offset);
 }
 
-char aq_get_fan_duty(char n, char *buffer)
+char aq_get_fan_duty(char n)
 {
 	/* TODO: simplify */
-	unsigned char 	t;
-	unsigned short 	s;
+	uchar 	t;
+	ushort 	s;
 
-	t = *(buffer + AQ_FAN_PWR_OFFS + (n * AQ_FAN_PWR_LEN));
+	if (aq_data_buffer == NULL)
+		return -1;
+
+	t = *(aq_data_buffer + AQ_FAN_PWR_OFFS + (n * AQ_FAN_PWR_LEN));
 	s = (t * 100) >> 8;
 
 	return (char)s;
 }
 
-char *aq_get_temp_name(char n, char *buffer)
+char *aq_get_temp_name(char n)
 {
-	return aq_get_string(buffer, AQ_TEMP_NAME_OFFS + (n *
-			(AQ_TEMP_NAME_LEN + 1)), AQ_TEMP_NAME_LEN);
+	int offset;
+
+	if (aq_data_buffer == NULL)
+		return NULL;
+
+	offset = AQ_TEMP_NAME_OFFS + (n * (AQ_TEMP_NAME_LEN + 1));
+
+	return strdup(aq_trim_str(aq_data_buffer, offset, AQ_TEMP_NAME_LEN));
 }
 
-double aq_get_temp_value(char n, char *buffer)
+double aq_get_temp_value(char n)
 {
-	unsigned short c;
+	ushort 	c;
+	int 	offset;
 
-	c = aq_get_short(buffer, AQ_TEMP_VAL_OFFS + (n * AQ_TEMP_VAL_LEN));
+	if (aq_data_buffer == NULL)
+		return -1;
 
-	return (c != AQ_TEMP_NAN) ? (double)c / 10 : -1;
+	offset = AQ_TEMP_VAL_OFFS + (n * AQ_TEMP_VAL_LEN);
+	c = aq_get_ushort(aq_data_buffer, offset);
+
+	return (c != AQ_TEMP_NAN) ? (double)c / 10 : AQ_TEMP_NCONN;
 }
 
-ushort aq_get_serial(char *buffer)
+ushort aq_get_serial()
 {
-	return aq_get_short(buffer, AQ_DEV_SERIAL_OFFS);
+	if (aq_data_buffer == NULL)
+		return 0;
+
+	return aq_get_ushort(aq_data_buffer, AQ_DEV_SERIAL_OFFS);
 }
+
+
+/*
+ * device communication related functions
+ */
 
 libusb_device *aq_dev_find()
 {
-	libusb_device **dev_list;
-	libusb_device *ret, *dev;
-	struct libusb_device_descriptor desc;
-	ssize_t n, i;
-
-	libusb_init(NULL);
+	libusb_device 	**dev_list;
+	libusb_device 	*ret, *dev;
+	struct 			libusb_device_descriptor desc;
+	ssize_t 		n, i;
 
 	if ((n = libusb_get_device_list(NULL, &dev_list)) < 0) {
 		return NULL;
@@ -136,30 +203,24 @@ libusb_device *aq_dev_find()
 	    }
 	    if (desc.idVendor == AQ_USB_VID &&
 	    		desc.idProduct == AQ_USB_PID) {
-	        ret = dev;
+	        ret = libusb_ref_device(dev);
 	        break;
 	    }
 	}
-	/* TODO: heavy restructuring: device must be opened before freeing the
-	 * device list, which decreases reference counters on all devices on it.
-	 */
-	libusb_free_device_list(dev_list, 0);
+	libusb_free_device_list(dev_list, 1);
 
 	return ret;
 }
 
-int aq_dev_poll(char *buffer, char **err)
+int aq_dev_poll(char **err)
 {
-	int 	i, n, transferred;
-	libusb_device_handle *handle;
+	int 					i, n, transferred;
+	libusb_device_handle 	*handle;
 
-	/* search device if not yet found */
-	if (aq_usb_dev == NULL) {
-		if ((aq_usb_dev = aq_dev_find()) == NULL) {
-			*err = "no aquaero(R) device found";
-			return -1;
-		}
-	}
+	if (aq_data_buffer == NULL)
+		return -1;
+	if (aq_usb_dev == NULL)
+		return -1;
 
 	/* USB device initialization and configuration */
 	/* TODO: maybe some error handling */
@@ -167,13 +228,11 @@ int aq_dev_poll(char *buffer, char **err)
 	    *err = "failed to open device";
 	    return -1;
 	}
+	/* TODO: definitely more error handling */
 	if (libusb_kernel_driver_active(handle, 0)) {
 		i = libusb_detach_kernel_driver(handle, 0);
 		if (i != LIBUSB_ERROR_NOT_FOUND) {
-			if (i == -EPERM)
-				*err = "failed to detach kernel driver (permission denied)";
-			else
-				*err = "failed to detach kernel driver";
+			*err = "failed to detach kernel driver";
 			goto err_exit2;
 		}
 	}
@@ -222,10 +281,9 @@ int aq_dev_poll(char *buffer, char **err)
 		}
 	}
 
-	if ((i = libusb_interrupt_transfer(handle, AQ_USB_ENDP, buffer, AQ_USB_READ_LEN,
-			&transferred, AQ_USB_TIMEOUT)) != 0) {
+	if ((i = libusb_interrupt_transfer(handle, AQ_USB_ENDP, aq_data_buffer,
+			AQ_USB_READ_LEN, &transferred, AQ_USB_TIMEOUT)) != 0) {
 		*err = "failed to read from device";
-		printf("interrupt transfer failed, returned %d\n", i);
 		goto err_exit1;
 	}
 
@@ -239,56 +297,90 @@ err_exit2: libusb_close(handle);
 	return -1;
 }
 
-struct aquaero_data *aquaero_poll_data(char *buffer, char **err_msg)
+
+/*
+ * one-for-all functions to be used from outside, proposed order
+ */
+
+int aquaero_init(char **err_msg)
+{
+	/* initialize libusb */
+	if (libusb_init(NULL) != 0) {
+		*err_msg = "failed to initialize libusb";
+		return -1;
+	}
+	/* allocate raw data buffer */
+	if ((aq_data_buffer = malloc(AQ_USB_READ_LEN)) == NULL) {
+		*err_msg = "failed to allocate data buffer";
+		libusb_exit(NULL);
+		return -1;
+	}
+	/* find device */
+	if ((aq_usb_dev = aq_dev_find()) == NULL) {
+		*err_msg = "no aquaero(R) device found";
+		free(aq_data_buffer);
+		libusb_exit(NULL);
+		return -1;
+	}
+
+	return 0;
+}
+
+struct aquaero_data *aquaero_poll_data(char **err_msg)
 {
 	int		i;
-	char 	*raw_data;
 	struct	aquaero_data *ret_data;
+
+	if (aq_data_buffer == NULL || aq_usb_dev == NULL) {
+		*err_msg = "uninitialized, call aquaero_init() first";
+		return NULL;
+	}
 
 	/* prepare data structure */
 	if ((ret_data = malloc(sizeof(struct aquaero_data))) == NULL) {
 		*err_msg = "out-of-memory allocating data structure";
 		return NULL;
 	}
-	/* prepare data buffer */
-	if (buffer == NULL) {
-		if ((raw_data = malloc(AQ_USB_READ_LEN)) == NULL) {
-			*err_msg = "out-of-memory allocating data buffer";
-			return NULL;
-		}
-	} else {
-		raw_data = buffer;
-	}
+
 
 	/* poll raw data */
-	if ((i = aq_dev_poll(raw_data, err_msg)) < 0) {
-		if (buffer == NULL)
-			free(raw_data);
+	if ((i = aq_dev_poll(err_msg)) < 0) {
+		free(ret_data);
 		return NULL;
 	}
 
 	/* process data, fill structure */
-	ret_data->device_name = strdup(aq_get_name(raw_data));
-	ret_data->firmware = strdup(aq_get_fw(raw_data));
-	ret_data->prod_year = aq_get_prod_year(raw_data);
-	ret_data->prod_month = aq_get_prod_month(raw_data);
-	ret_data->device_serial = aq_get_serial(raw_data);
-	ret_data->flash_count = aq_get_flash_count(raw_data);
-	ret_data->os_version = aq_get_os_version(raw_data);
+	ret_data->device_name = aq_get_name();
+	ret_data->firmware = aq_get_fw();
+	ret_data->prod_year = aq_get_prod_year();
+	ret_data->prod_month = aq_get_prod_month();
+	ret_data->device_serial = aq_get_serial();
+	ret_data->flash_count = aq_get_flash_count();
+	ret_data->os_version = aq_get_os_version();
 	for (i = 0; i < AQ_FAN_NUM; i++) {
-		ret_data->fan_names[i] = strdup(aq_get_fan_name(i, raw_data));
-		ret_data->fan_rpm[i] = aq_get_fan_rpm(i, raw_data);
-		ret_data->fan_duty[i] = aq_get_fan_duty(i, raw_data);
+		ret_data->fan_names[i] = aq_get_fan_name(i);
+		ret_data->fan_rpm[i] = aq_get_fan_rpm(i);
+		ret_data->fan_duty[i] = aq_get_fan_duty(i);
 	}
 	for (i = 0; i < AQ_TEMP_NUM; i++) {
-		ret_data->temp_names[i] = strdup(aq_get_temp_name(i, raw_data));
-		ret_data->temp_values[i] = aq_get_temp_value(i, raw_data);
-	}
-
-	/* our own allocated data buffer, free */
-	if (buffer == NULL) {
-		free(raw_data);
+		ret_data->temp_names[i] = aq_get_temp_name(i);
+		ret_data->temp_values[i] = aq_get_temp_value(i);
 	}
 
 	return ret_data;
+}
+
+uchar *aquaero_get_buffer()
+{
+	return aq_data_buffer;
+}
+
+void aquaero_exit()
+{
+	libusb_exit(NULL);
+
+	if (aq_data_buffer != NULL)
+		free(aq_data_buffer);
+
+	return;
 }

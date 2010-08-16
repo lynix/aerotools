@@ -1,19 +1,19 @@
 /* Copyright lynix <lynix47@gmail.com>, 2010
  *
- * This file is part of aerocli.
+ * This file is part of aerotools.
  *
- * aerocli is free software: you can redistribute it and/or modify
+ * aerotools is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * aerocli is distributed in the hope that it will be useful,
+ * aerotools is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with aerocli. If not, see <http://www.gnu.org/licenses/>.
+ * along with aerotools. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef DEVICE_H_
@@ -23,8 +23,7 @@
 #include <libusb-1.0/libusb.h>
 #include <string.h>
 #include <stdlib.h>
-/* debugging only!: */
-#include <stdio.h>
+#include <unistd.h>
 
 /* usb device communication related stuff */
 #define AQ_USB_VID 				0x0c70
@@ -61,12 +60,15 @@
 #define AQ_TEMP_NAN				0x4e20
 #define AQ_TEMP_NCONN			-1.0
 
-/* complete device data structure */
+/* own types */
+typedef unsigned char uchar;
+
+/* aquaero(R) device data structure */
 struct aquaero_data {
 	char 		*device_name;
 	char 		*firmware;
-	char 		prod_year;
-	char 		prod_month;
+	uchar 		prod_year;
+	uchar 		prod_month;
 	ushort 		device_serial;
 	ushort 		flash_count;
 	ushort 		os_version;
@@ -79,25 +81,29 @@ struct aquaero_data {
 
 /* device communication */
 libusb_device *aq_dev_find();
-int		aq_dev_poll(char *buffer, char **err);
+int		aq_dev_poll(char **err);
 
 /* data processing */
-ushort	aq_get_short(char *buffer, int offset);
-char	*aq_get_string(char *buffer, int offset, int max_length);
-char 	*aq_get_name(char *buffer);
-char 	*aq_get_fw(char *buffer);
-char 	*aq_get_fan_name(char n, char *buffer);
-char    *aq_get_temp_name(char n, char *buffer);
-char 	aq_get_fan_duty(char n, char *buffer);
-char 	aq_get_prod_year(char *buffer);
-char 	aq_get_prod_month(char *buffer);
-ushort 	aq_get_fan_rpm(char n, char *buffer);
-ushort 	aq_get_serial(char *buffer);
-ushort	aq_get_flash_count(char *buffer);
-ushort	aq_get_os(char *buffer);
-double 	aq_get_temp_value(char n, char *buffer);
+ushort	aq_get_short(uchar *buffer, int offset);
+char	*aq_get_string(uchar *buffer, int offset, int max_length);
 
-/* all-in-one API query function */
-struct	aquaero_data *aquaero_poll_data(char *buffer, char **err_msg);
+char 	*aq_get_name();
+char 	*aq_get_fw();
+char 	*aq_get_fan_name(char n);
+char    *aq_get_temp_name(char n);
+char 	aq_get_fan_duty(char n);
+uchar 	aq_get_prod_year();
+uchar 	aq_get_prod_month();
+ushort 	aq_get_fan_rpm(char n);
+ushort 	aq_get_serial();
+ushort	aq_get_flash_count();
+ushort	aq_get_os();
+double 	aq_get_temp_value(char n);
+
+/* all-in-one API query functions */
+int		aquaero_init(char **err_msg);
+struct	aquaero_data *aquaero_poll_data(char **err_msg);
+uchar	*aquaero_get_buffer();
+void	aquaero_exit();
 
 #endif /* DEVICE_H_ */

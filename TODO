@@ -1,6 +1,4 @@
  
- - [device]     switch to libusb1
- 
  - [device]     clean coding style: avoid unnecessary {}, allow goto
 
  - [aerod]      reorganize logging and termination

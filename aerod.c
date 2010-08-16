@@ -2,18 +2,18 @@
  *
  * This file is part of aerotools.
  *
- * aerocli is free software: you can redistribute it and/or modify
+ * aerotools is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * aerocli is distributed in the hope that it will be useful,
+ * aerotools is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with aerocli. If not, see <http://www.gnu.org/licenses/>.
+ * along with aerotools. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "aerod.h"
@@ -28,10 +28,14 @@ int main(int argc, char *argv[])
 {
 	int				pid;
 	pthread_t		tcp_thread;
-	extern struct 	usb_device *aq_usb_dev;
+	char			*err_msg;
 
     /* parse cmdline arguments */
     parse_cmdline(argc, argv);
+
+    /* initialize device communication */
+	if (aquaero_init(&err_msg) != 0)
+		err_die("initialization failed: %s", err_msg);
 
     /* daemonize */
     if (opts.fork) {
@@ -60,11 +64,6 @@ int main(int argc, char *argv[])
 		if (write_pidfile(getpid()) != 0) {
 			log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE, strerror(errno));
 		}
-    }
-
-    /* search aquaero(R) device */
-    if ((aq_usb_dev = aq_dev_find()) == NULL) {
-    	err_die("no aquaero(R) device found, terminating");
     }
 
     /* register signals */
@@ -181,7 +180,7 @@ char *poll_aquaero(char **err_msg)
 	double 	d;
 
 	/* setup device, read raw data */
-	if ((aq_data = aquaero_poll_data(NULL, err_msg)) == NULL) {
+	if ((aq_data = aquaero_poll_data(err_msg)) == NULL) {
 		return NULL;
 	}
 
@@ -297,6 +296,7 @@ void die()
 	close(server_sock);
 	closelog();
 	unlink(PID_FILE);
+	aquaero_exit();
 
 	exit(EXIT_SUCCESS);
 }

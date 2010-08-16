@@ -2,18 +2,18 @@
  *
  * This file is part of aerotools.
  *
- * aerocli is free software: you can redistribute it and/or modify
+ * aerotools is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * aerocli is distributed in the hope that it will be useful,
+ * aerotools is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with aerocli. If not, see <http://www.gnu.org/licenses/>.
+ * along with aerotools. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "aerocli.h"
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 {
 	int 	i;
 	double 	d;
-	char 	*data_buffer, *err_msg;
+	char 	*err_msg;
     struct 	options opts;
     struct 	aquaero_data *aq_data;
 
@@ -169,22 +169,21 @@ int main(int argc, char *argv[])
     init_opts(&opts);
     parse_cmdline(&opts, argc, argv);
 
-    /* prepare data buffer */
-    if ((data_buffer = malloc(AQ_USB_READ_LEN)) == NULL) {
-    	err_die("failed to allocate %d bytes for data buffer", AQ_USB_READ_LEN);
-    }
+    /* initialize device communication stuff */
+    if (aquaero_init(&err_msg) != 0)
+    	err_die(err_msg);
 
     /* poll data from device */
-    if ((aq_data = aquaero_poll_data(data_buffer, &err_msg)) == NULL) {
-    	free(data_buffer);
+    if ((aq_data = aquaero_poll_data(&err_msg)) == NULL)
     	err_die(err_msg);
+
+    /* dump data if requested */
+    if (opts.dump) {
+    	dump_data(opts.dump_fn, (char *)aquaero_get_buffer(), AQ_USB_READ_LEN);
     }
 
-    /* dump data if requested, clear buffer */
-    if (opts.dump) {
-    	dump_data(opts.dump_fn, data_buffer, AQ_USB_READ_LEN);
-    }
-    free(data_buffer);
+    /* uninitialize device communication stuff */
+    aquaero_exit();
 
     /* print only selected data if requested */
     if (opts.fan_duty) {

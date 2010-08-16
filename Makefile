@@ -10,8 +10,6 @@ aerocli : aerocli.o device.o
 aerod : aerod.o device.o
 	$(CC) $(CFLAGS) -lusb-1.0 -lpthread $(LDFLAGS) -o $@ $^
 
-device : device.o
-
 aerocli.o : aerocli.c aerocli.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 	
