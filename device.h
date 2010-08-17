@@ -37,26 +37,26 @@
 
 /* data offsets and formatting constants */
 #define AQ_DEV_FW_LEN			5
-#define AQ_DEV_FW_OFFS			0x21
+#define AQ_DEV_FW_OFFS			0x1f9
 #define	AQ_DEV_NAME_LEN			9
-#define AQ_DEV_NAME_OFFS		0xc9
-#define AQ_DEV_OS_OFFS			40
-#define AQ_DEV_FLASHC_OFFS		44
-#define AQ_DEV_SERIAL_OFFS		48
-#define AQ_DEV_PROD_M_OFFS		50
-#define AQ_DEV_PROD_Y_OFFS		51
+#define AQ_DEV_NAME_OFFS		0x079
+#define AQ_DEV_OS_OFFS			0x200
+#define AQ_DEV_FLASHC_OFFS		0x204
+#define AQ_DEV_SERIAL_OFFS		0x208
+#define AQ_DEV_PROD_M_OFFS		0x20a
+#define AQ_DEV_PROD_Y_OFFS		0x20b
 #define AQ_FAN_NUM				4
 #define AQ_FAN_NAME_LEN			10
-#define AQ_FAN_NAME_OFFS		0x50
+#define AQ_FAN_NAME_OFFS		0x000
 #define AQ_FAN_RPM_LEN			2
-#define AQ_FAN_RPM_OFFS			522
+#define AQ_FAN_RPM_OFFS			0x1ba
 #define AQ_FAN_PWR_LEN			1
-#define AQ_FAN_PWR_OFFS			278
+#define AQ_FAN_PWR_OFFS			0x0c6
 #define AQ_TEMP_NUM				6
 #define AQ_TEMP_NAME_LEN		10
-#define AQ_TEMP_NAME_OFFS  		135
+#define AQ_TEMP_NAME_OFFS  		0x037
 #define AQ_TEMP_VAL_LEN			2
-#define AQ_TEMP_VAL_OFFS		540
+#define AQ_TEMP_VAL_OFFS		0x1cc
 #define AQ_TEMP_NAN				0x4e20
 #define AQ_TEMP_NCONN			-1.0
 
@@ -81,6 +81,7 @@ struct aquaero_data {
 
 /* device communication */
 libusb_device *aq_dev_find();
+int		aq_dev_init(char **err);
 int		aq_dev_poll(char **err);
 
 /* data processing */
