@@ -20,9 +20,9 @@ device.o : device.c device.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
 install: aerocli aerod
-	mkdir -p $(DESTDIR)/sbin
-	install -m 755 aerocli $(DESTDIR)/sbin/aerocli
-	install -m 755 aerod $(DESTDIR)/sbin/aerod
+	mkdir -p $(DESTDIR)/bin
+	install -m 755 aerocli $(DESTDIR)/bin/aerocli
+	install -m 755 aerod $(DESTDIR)/bin/aerod
 
 clean :
 	rm -f aerocli aerod *.o
