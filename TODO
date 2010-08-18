@@ -1,18 +1,14 @@
  
- - [device]     clean coding style: avoid unnecessary {}, allow goto
-
  - [aerod]      reorganize logging and termination
 
  - [aerocli]    add "-n" switch for "-f" and "-s" to suppress units, for easy
                 integration in bash-scripts, graph-drawing, etc.
 
- - [aerocli,aerod] replace arg-parsing with stdopts
+ - [aerocli]    replace arg-parsing with stdopts
  
- - [all]        implement time synchronization (as the only non-read-only 
+ - [all]        maybe implement time synchronization (as the only non-read-only 
                 function)
                 
  - [device]     add documentation using Doxygen
  
  - [all]        handle disconnected fans
-   
- - [all]        lots of refactoring ;)
