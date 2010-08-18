@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -I /usr/include -g
-DESTDIR = /usr
+PREFIX ?= /usr
+INSTALLDIR ?= $(DESTDIR)$(PREFIX)
 
 all : aerocli aerod
 
@@ -20,9 +21,13 @@ device.o : device.c device.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
 install: aerocli aerod
-	mkdir -p $(DESTDIR)/bin
-	install -m 755 aerocli $(DESTDIR)/bin/aerocli
-	install -m 755 aerod $(DESTDIR)/bin/aerod
+	mkdir -p $(INSTALLDIR)/bin
+	install -m 755 aerocli $(INSTALLDIR)/bin/aerocli
+	install -m 755 aerod $(INSTALLDIR)/bin/aerod
+
+uninstall:
+	rm -f $(INSTALLDIR)/bin/aerocli
+	rm -f $(INSTALLDIR)/bin/aerod
 
 clean :
 	rm -f aerocli aerod *.o
