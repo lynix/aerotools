@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-/* usb device communication related stuff */
+/* usb device communication related constants */
 #define AQ_USB_VID 				0x0c70
 #define AQ_USB_PID 				0xf0b0
 #define AQ_USB_CONF				1
@@ -80,31 +80,32 @@ struct aquaero_data {
 };
 
 /* device communication */
-libusb_device *aq_dev_find();
-int		aq_dev_init(char **err);
-int		aq_dev_poll(char **err);
+libusb_device 	*aq_dev_find();
+int				aq_dev_init(char **err);
+int				aq_dev_poll(char **err);
 
-/* data processing */
-ushort	aq_get_short(uchar *buffer, int offset);
-char	*aq_get_string(uchar *buffer, int offset, int max_length);
+/* helper functions */
+ushort			aq_get_short(uchar *buffer, int offset);
+char			*aq_get_string(uchar *buffer, int offset, int max_length);
 
-char 	*aq_get_name();
-char 	*aq_get_fw();
-char 	*aq_get_fan_name(char n);
-char    *aq_get_temp_name(char n);
-char 	aq_get_fan_duty(char n);
-uchar 	aq_get_prod_year();
-uchar 	aq_get_prod_month();
-ushort 	aq_get_fan_rpm(char n);
-ushort 	aq_get_serial();
-ushort	aq_get_flash_count();
-ushort	aq_get_os();
-double 	aq_get_temp_value(char n);
+/* data extraction, conversion */
+char 			*aq_get_name();
+char 			*aq_get_fw();
+char 			*aq_get_fan_name(char n);
+char    		*aq_get_temp_name(char n);
+char 			aq_get_fan_duty(char n);
+uchar 			aq_get_prod_year();
+uchar 			aq_get_prod_month();
+ushort 			aq_get_fan_rpm(char n);
+ushort 			aq_get_serial();
+ushort			aq_get_flash_count();
+ushort			aq_get_os();
+double 			aq_get_temp_value(char n);
 
-/* all-in-one API query functions */
-int		aquaero_init(char **err_msg);
-struct	aquaero_data *aquaero_poll_data(char **err_msg);
-uchar	*aquaero_get_buffer();
-void	aquaero_exit();
+/* all-in-one query functions */
+int				aquaero_init(char **err_msg);
+struct			aquaero_data *aquaero_poll_data(char **err_msg);
+uchar			*aquaero_get_buffer();
+void			aquaero_exit();
 
 #endif /* DEVICE_H_ */

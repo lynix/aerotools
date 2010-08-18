@@ -20,7 +20,7 @@
 
 
 /*
- * globals
+ *	globals
  */
 
 libusb_device 	*aq_usb_dev = NULL;
@@ -28,19 +28,18 @@ uchar 			*aq_data_buffer = NULL;
 
 
 /*
- * helper functions
+ *	helper functions
  */
 
 ushort aq_get_ushort(uchar *buffer, int offset)
 {
-	return (((uchar)buffer[offset]) << 8) + (uchar)buffer[offset + 1];
+	return (buffer[offset] << 8) + buffer[offset + 1];
 }
 
 char *aq_trim_str(uchar *buffer, int offset, int max_length)
 {
-	unsigned short i;
+	ushort i = offset + max_length;
 
-	i = offset + max_length;
 	while (i > offset) {
 		if (buffer[i-1] != ' ')
 			break;
@@ -53,7 +52,7 @@ char *aq_trim_str(uchar *buffer, int offset, int max_length)
 
 
 /*
- * device-specific wrapper functions
+ *	device-specific data extraction functions
  */
 
 char *aq_get_name()
@@ -168,7 +167,7 @@ double aq_get_temp_value(char n)
 	offset = AQ_TEMP_VAL_OFFS + (n * AQ_TEMP_VAL_LEN);
 	c = aq_get_ushort(aq_data_buffer, offset);
 
-	return (c != AQ_TEMP_NAN) ? (double)c / 10 : AQ_TEMP_NCONN;
+	return (c != AQ_TEMP_NAN) ? (double)c / 10.0 : AQ_TEMP_NCONN;
 }
 
 ushort aq_get_serial()
@@ -181,13 +180,13 @@ ushort aq_get_serial()
 
 
 /*
- * device communication related functions
+ *	device communication related functions
  */
 
 libusb_device *aq_dev_find()
 {
 	libusb_device 	**dev_list;
-	libusb_device 	*ret, *dev;
+	libusb_device 	*ret = NULL, *dev;
 	struct 			libusb_device_descriptor desc;
 	ssize_t 		n, i;
 
@@ -195,7 +194,6 @@ libusb_device *aq_dev_find()
 		return NULL;
 	}
 
-	ret = NULL;
 	for (i = 0; i < n; i++) {
 	    dev = dev_list[i];
 	    if (libusb_get_device_descriptor(dev, &desc) < 0) {
@@ -214,7 +212,7 @@ libusb_device *aq_dev_find()
 
 int aq_dev_init(char **err)
 {
-	char 	kernel_active;
+	char 	kernel_active = 0;
 	int		i, n;
 	struct 	libusb_device_handle *handle;
 
@@ -223,7 +221,6 @@ int aq_dev_init(char **err)
 	    return -1;
 	}
 
-	kernel_active = 0;
 	/* TODO: definitely more error handling */
 	if (libusb_kernel_driver_active(handle, 0)) {
 		kernel_active = 1;
@@ -276,8 +273,8 @@ int aq_dev_init(char **err)
 
 int aq_dev_poll(char **err)
 {
-	int 					i, n, transferred;
-	libusb_device_handle 	*handle;
+	int		i, n, transferred;
+	struct	libusb_device_handle *handle;
 
 	if (aq_data_buffer == NULL)
 		return -1;
@@ -285,7 +282,7 @@ int aq_dev_poll(char **err)
 		return -1;
 
 	/* USB device initialization and configuration */
-	/* TODO: maybe some error handling */
+	/* TODO: maybe some more error handling */
 	if (libusb_open(aq_usb_dev, &handle) != 0) {
 	    *err = "failed to open device";
 	    return -1;
@@ -328,7 +325,7 @@ err_exit2: libusb_close(handle);
 
 
 /*
- * one-for-all functions to be used from outside, proposed order
+ *	one-for-all functions to be used from outside, proposed order
  */
 
 int aquaero_init(char **err_msg)
@@ -339,7 +336,7 @@ int aquaero_init(char **err_msg)
 		return -1;
 	}
 	/* allocate raw data buffer */
-	if ((aq_data_buffer = malloc(AQ_USB_READ_LEN)) == NULL) {
+	if ((aq_data_buffer = calloc(AQ_USB_READ_LEN, 1)) == NULL) {
 		*err_msg = "failed to allocate data buffer";
 		libusb_exit(NULL);
 		return -1;
@@ -379,7 +376,6 @@ struct aquaero_data *aquaero_poll_data(char **err_msg)
 		return NULL;
 	}
 
-
 	/* poll raw data */
 	if ((i = aq_dev_poll(err_msg)) < 0) {
 		free(ret_data);
@@ -387,21 +383,21 @@ struct aquaero_data *aquaero_poll_data(char **err_msg)
 	}
 
 	/* process data, fill structure */
-	ret_data->device_name = aq_get_name();
-	ret_data->firmware = aq_get_fw();
-	ret_data->prod_year = aq_get_prod_year();
-	ret_data->prod_month = aq_get_prod_month();
+	ret_data->device_name 	= aq_get_name();
+	ret_data->firmware 		= aq_get_fw();
+	ret_data->prod_year 	= aq_get_prod_year();
+	ret_data->prod_month 	= aq_get_prod_month();
 	ret_data->device_serial = aq_get_serial();
-	ret_data->flash_count = aq_get_flash_count();
-	ret_data->os_version = aq_get_os_version();
+	ret_data->flash_count 	= aq_get_flash_count();
+	ret_data->os_version 	= aq_get_os_version();
 	for (i = 0; i < AQ_FAN_NUM; i++) {
-		ret_data->fan_names[i] = aq_get_fan_name(i);
-		ret_data->fan_rpm[i] = aq_get_fan_rpm(i);
-		ret_data->fan_duty[i] = aq_get_fan_duty(i);
+		ret_data->fan_names[i] 	= aq_get_fan_name(i);
+		ret_data->fan_rpm[i] 	= aq_get_fan_rpm(i);
+		ret_data->fan_duty[i] 	= aq_get_fan_duty(i);
 	}
 	for (i = 0; i < AQ_TEMP_NUM; i++) {
-		ret_data->temp_names[i] = aq_get_temp_name(i);
-		ret_data->temp_values[i] = aq_get_temp_value(i);
+		ret_data->temp_names[i] 	= aq_get_temp_name(i);
+		ret_data->temp_values[i] 	= aq_get_temp_value(i);
 	}
 
 	return ret_data;
