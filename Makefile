@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -I /usr/include -g
 PREFIX ?= /usr
-INSTALLDIR ?= $(DESTDIR)$(PREFIX)
+INSTALLDIR = $(DESTDIR)$(PREFIX)
 
 all : aerocli aerod
 
