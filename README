@@ -64,7 +64,20 @@ Unlike aerotools, it was designed to allow not only querying but also changing
 settings on the aquaero(R) device.
 
 
-CONTACT
+DEVELOPMENT
+----------------
+I only own one aquaero(R) 4.0 USB device, with four fans and two sensors
+attached, so I'm currently not able to implement querying  other stuff like LEDs
+or Aquastream(R), which can be connected to the device.
+If you own such equipment and would like to support the development, please feel
+free to submit pull requests or fork the project. Hardware donations are also
+welcome, of course ;)
+
+My aquaero(R) is installed in an x86_64 box, so I'm reliant to your bug reports
+for i686, etc.
+
+
+BUGS / CONTACT
 ----------------
 Feel free to report any bugs you find using the 'issues' function on GitHub. If
 you wish to contact the author, you can drop him an email to lynix47@gmail.com.
@@ -73,5 +86,5 @@ You might wish to use his GPG key, #4804CCA9 on keys.gnupg.net
 
 LICENSE
 ----------------
-This program is published under the terms of the GNU General Public
-License, version 3. See the file 'LICENSE' for more information.
+This program is published under the terms of the GNU General Public License,
+version 3. See the file 'LICENSE' for more information.

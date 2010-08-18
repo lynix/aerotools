@@ -406,11 +406,11 @@ void print_help()
 	printf("Usage:  %s [OPTIONS]\n\n", PROGN);
 
 	printf("Options:\n");
-	printf("  -p   port to listen to (default %d)\n", PORT);
+	printf("  -p   port to listen on (default %d)\n", PORT);
 	printf("  -i   interval for polling in seconds (default: %d)\n", INTERVAL);
 	printf("  -F   don't daemonize, stay in foreground\n");
 	printf("  -f   write PID file (/var/run/%s.pid)", PROGN);
-	printf("  -t   query hddtemp and import results\n");
+	printf("  -t   query hddtemp and include data\n");
 	printf("  -h   display this usage and license information\n");
 
 	printf("\n");
