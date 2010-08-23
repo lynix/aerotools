@@ -1,3 +1,5 @@
+
+ - [aerod]      fix SEGFAULT occuring on failed device read, realloc()
  
  - [aerod]      reorganize logging and termination
 

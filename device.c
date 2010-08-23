@@ -234,35 +234,29 @@ int aq_dev_init(char **err)
 	}
 
 	/* TODO: simplify that mess? */
-	if (libusb_get_configuration(handle, &i) != 0) {
-		*err = "failed to get current configuration";
-		libusb_close(handle);
-		return -1;
-	}
-	if (i != AQ_USB_CONF || kernel_active) {
-		if ((i = libusb_set_configuration(handle, AQ_USB_CONF)) < 0) {
+	/* soft-reset device, set configuration */
+	if ((i = libusb_set_configuration(handle, AQ_USB_CONF)) < 0) {
+		if (i == LIBUSB_ERROR_BUSY) {
+			n = 1;
+			while (n < AQ_USB_RETRIES) {
+				sleep(AQ_USB_RETRY_DELAY);
+				i = libusb_set_configuration(handle, AQ_USB_CONF);
+				if (i != LIBUSB_ERROR_BUSY)
+					break;
+			}
 			if (i == LIBUSB_ERROR_BUSY) {
-				n = 1;
-				while (n < AQ_USB_RETRIES) {
-					sleep(AQ_USB_RETRY_DELAY);
-					i = libusb_set_configuration(handle, AQ_USB_CONF);
-					if (i != LIBUSB_ERROR_BUSY)
-						break;
-				}
-				if (i == LIBUSB_ERROR_BUSY) {
-					*err = "failed to set device configuration (device busy)";
-					libusb_close(handle);
-					return -1;
-				} else if (i != 0) {
-					*err = "failed to set device configuration";
-					libusb_close(handle);
-					return -1;
-				}
-			} else {
+				*err = "failed to set device configuration (device busy)";
+				libusb_close(handle);
+				return -1;
+			} else if (i != 0) {
 				*err = "failed to set device configuration";
 				libusb_close(handle);
 				return -1;
 			}
+		} else {
+			*err = "failed to set device configuration";
+			libusb_close(handle);
+			return -1;
 		}
 	}
 
@@ -410,6 +404,8 @@ uchar *aquaero_get_buffer()
 
 void aquaero_exit()
 {
+	if (aq_usb_dev != NULL)
+		libusb_unref_device(aq_usb_dev);
 	libusb_exit(NULL);
 
 	if (aq_data_buffer != NULL)
