@@ -170,6 +170,27 @@ double aq_get_temp_value(char n)
 	return (c != AQ_TEMP_NAN) ? (double)c / 10.0 : AQ_TEMP_NCONN;
 }
 
+char *aq_get_flow_name()
+{
+	if (aq_data_buffer == NULL)
+		return NULL;
+
+	return strdup(aq_trim_str(aq_data_buffer, AQ_FLOW_NAME_OFFS,
+			AQ_FLOW_NAME_LEN));
+}
+
+double aq_get_flow_value()
+{
+	ushort 	c;
+
+	if (aq_data_buffer == NULL)
+		return -1;
+
+	c = aq_get_ushort(aq_data_buffer, AQ_FLOW_VAL_OFFS);
+
+	return (c != AQ_FLOW_NAN) ? (double)c / 100.0 : AQ_FLOW_NCONN;
+}
+
 ushort aq_get_serial()
 {
 	if (aq_data_buffer == NULL)
@@ -384,6 +405,8 @@ struct aquaero_data *aquaero_poll_data(char **err_msg)
 	ret_data->device_serial = aq_get_serial();
 	ret_data->flash_count 	= aq_get_flash_count();
 	ret_data->os_version 	= aq_get_os_version();
+	ret_data->flow_name		= aq_get_flow_name();
+	ret_data->flow_value	= aq_get_flow_value();
 	for (i = 0; i < AQ_FAN_NUM; i++) {
 		ret_data->fan_names[i] 	= aq_get_fan_name(i);
 		ret_data->fan_rpm[i] 	= aq_get_fan_rpm(i);

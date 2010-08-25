@@ -59,6 +59,11 @@
 #define AQ_TEMP_VAL_OFFS		0x1cc
 #define AQ_TEMP_NAN				0x4e20
 #define AQ_TEMP_NCONN			-1.0
+#define AQ_FLOW_NAME_LEN		10
+#define AQ_FLOW_NAME_OFFS		0x02c
+#define AQ_FLOW_VAL_OFFS		0x1c2
+#define AQ_FLOW_NAN				0x4e20
+#define AQ_FLOW_NCONN			-1.0
 
 /* own types */
 typedef unsigned char uchar;
@@ -74,9 +79,11 @@ struct aquaero_data {
 	ushort 		os_version;
 	char 		*fan_names[AQ_FAN_NUM];
 	char 		*temp_names[AQ_TEMP_NUM];
+	char		*flow_name;
 	ushort 		fan_rpm[AQ_FAN_NUM];
 	char 		fan_duty[AQ_FAN_NUM];
 	double 		temp_values[AQ_TEMP_NUM];
+	double		flow_value;
 };
 
 /* device communication */
@@ -93,6 +100,7 @@ char 			*aq_get_name();
 char 			*aq_get_fw();
 char 			*aq_get_fan_name(char n);
 char    		*aq_get_temp_name(char n);
+char 			*aq_get_flow_name();
 char 			aq_get_fan_duty(char n);
 uchar 			aq_get_prod_year();
 uchar 			aq_get_prod_month();
@@ -101,6 +109,7 @@ ushort 			aq_get_serial();
 ushort			aq_get_flash_count();
 ushort			aq_get_os();
 double 			aq_get_temp_value(char n);
+double			aq_get_flow_value();
 
 /* all-in-one query functions */
 int				aquaero_init(char **err_msg);

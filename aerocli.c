@@ -227,6 +227,13 @@ int main(int argc, char *argv[])
     		printf("%-10s not connected\n", aq_data->temp_names[i]);
     	}
     }
+    if ((d = aq_data->flow_value) != AQ_FLOW_NCONN || opts.all) {
+    	if (d != AQ_FLOW_NCONN) {
+			printf("%-10s %2.2fl/h\n", aq_data->flow_name, d);
+		} else {
+			printf("%-10s not connected\n", aq_data->flow_name);
+		}
+    }
 
     exit(EXIT_SUCCESS);
 }
