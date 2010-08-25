@@ -212,6 +212,23 @@ char *poll_aquaero(char **err_msg)
 			strcat(tmp_data_str, temp_line);
 		}
 	}
+	if (aq_data->flow_value != AQ_FLOW_NCONN) {
+		/* TODO: OK to use other units that F/C in hddtemp? */
+		sprintf(temp_line, "|/dev/flow|%s|%.0f|C|", aq_data->flow_name,
+				aq_data->flow_value);
+		if (tmp_data_str == NULL) {
+			tmp_data_str = strdup(temp_line);
+		} else {
+			if ((tmp_data_str = realloc(tmp_data_str, strlen(temp_line) +
+					strlen(tmp_data_str) + 1)) == NULL) {
+				free(tmp_data_str);
+				free(aq_data);
+				free(temp_line);
+				return NULL;
+			}
+			strcat(tmp_data_str, temp_line);
+		}
+	}
 
 	free(temp_line);
 	free(aq_data);
