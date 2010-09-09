@@ -50,6 +50,39 @@ char *aq_trim_str(uchar *buffer, int offset, int max_length)
 	return (char *)(buffer + offset);
 }
 
+char *aq_strcat(char *str1, char *str2)
+{
+	char *ret;
+
+	if ((ret = malloc(strlen(str1) + strlen(str2) + 1)) == NULL)
+		return NULL;
+	strcpy(ret, str1);
+	strcpy(ret + strlen(str1), str2);
+
+	return ret;
+}
+
+char *aq_libusb_strerr(int err)
+{
+	switch (err) {
+		case LIBUSB_SUCCESS:				return "success";
+		case LIBUSB_ERROR_IO:				return "I/O error";
+		case LIBUSB_ERROR_INVALID_PARAM:	return "invalid parameter";
+		case LIBUSB_ERROR_ACCESS:			return "access denied";
+		case LIBUSB_ERROR_NO_DEVICE:		return "no such device";
+		case LIBUSB_ERROR_NOT_FOUND:		return "entity not found";
+		case LIBUSB_ERROR_BUSY:				return "resource busy";
+		case LIBUSB_ERROR_TIMEOUT:			return "operation timed out";
+		case LIBUSB_ERROR_OVERFLOW:			return "overflow";
+		case LIBUSB_ERROR_PIPE:				return "pipe error";
+		case LIBUSB_ERROR_INTERRUPTED:		return "syscall interrupted";
+		case LIBUSB_ERROR_NO_MEM:			return "insufficient memory";
+		case LIBUSB_ERROR_NOT_SUPPORTED:	return "operation not supported";
+		case LIBUSB_ERROR_OTHER:			return "other error";
+		default:							return "unknown error";
+	}
+}
+
 
 /*
  *	device-specific data extraction functions
@@ -233,52 +266,35 @@ libusb_device *aq_dev_find()
 
 int aq_dev_init(char **err)
 {
-	char 	kernel_active = 0;
-	int		i, n;
+	int		i, n = 0;
 	struct 	libusb_device_handle *handle;
 
 	if (libusb_open(aq_usb_dev, &handle) != 0) {
-	    *err = "failed to open device";
+	    *err = aq_strcat("failed to open device: ", aq_strerr(i));
 	    return -1;
 	}
 
-	/* TODO: definitely more error handling */
+	/* detach kernel driver */
 	if (libusb_kernel_driver_active(handle, 0)) {
-		kernel_active = 1;
 		i = libusb_detach_kernel_driver(handle, 0);
 		if (i != 0 && i != LIBUSB_ERROR_NOT_FOUND) {
-			*err = "failed to detach kernel driver";
+			*err = aq_strcat("failed to detach kernel driver: ", aq_strerr(i));
 			libusb_close(handle);
 			return -1;
 		}
-
 	}
 
-	/* TODO: simplify that mess? */
 	/* soft-reset device, set configuration */
-	if ((i = libusb_set_configuration(handle, AQ_USB_CONF)) < 0) {
-		if (i == LIBUSB_ERROR_BUSY) {
-			n = 1;
-			while (n < AQ_USB_RETRIES) {
-				sleep(AQ_USB_RETRY_DELAY);
-				i = libusb_set_configuration(handle, AQ_USB_CONF);
-				if (i != LIBUSB_ERROR_BUSY)
-					break;
-			}
-			if (i == LIBUSB_ERROR_BUSY) {
-				*err = "failed to set device configuration (device busy)";
-				libusb_close(handle);
-				return -1;
-			} else if (i != 0) {
-				*err = "failed to set device configuration";
-				libusb_close(handle);
-				return -1;
-			}
-		} else {
-			*err = "failed to set device configuration";
-			libusb_close(handle);
-			return -1;
-		}
+	while (n < AQ_USB_RETRIES) {
+		i = libusb_set_configuration(handle, AQ_USB_CONF);
+		if (i != LIBUSB_ERROR_BUSY)
+			break;
+		sleep(AQ_USB_RETRY_DELAY);
+	}
+	if (i != 0) {
+		*err = aq_strcat("failed to set configuration: ", aq_strerr(i));
+		libusb_close(handle);
+		return -1;
 	}
 
 	libusb_close(handle);
@@ -288,54 +304,42 @@ int aq_dev_init(char **err)
 
 int aq_dev_poll(char **err)
 {
-	int		i, n, transferred;
+	int		i, n = 0, transferred;
 	struct	libusb_device_handle *handle;
 
-	if (aq_data_buffer == NULL)
+	if (aq_data_buffer == NULL || aq_usb_dev == NULL) {
+		*err = "uninitialized";
 		return -1;
-	if (aq_usb_dev == NULL)
-		return -1;
+	}
 
-	/* USB device initialization and configuration */
-	/* TODO: maybe some more error handling */
-	if (libusb_open(aq_usb_dev, &handle) != 0) {
-	    *err = "failed to open device";
+	if ((i = libusb_open(aq_usb_dev, &handle)) != 0) {
+	    *err = aq_strcat("failed to open device: ", aq_strerr(i));
 	    return -1;
 	}
 
-	if ((i = libusb_claim_interface(handle, 0)) < 0) {
-		if (i == LIBUSB_ERROR_BUSY) {
-			n = 1;
-			while (n < AQ_USB_RETRIES) {
-				sleep(AQ_USB_RETRY_DELAY);
-				i = libusb_claim_interface(handle, 0);
-				if (i != LIBUSB_ERROR_BUSY)
-					break;
-			}
-		}
-		if (i < 0) {
-			if (i == LIBUSB_ERROR_BUSY)
-				*err = "failed to claim interface (device busy)";
-			else
-				*err = "failed to claim interface";
-			goto err_exit2;
-		}
+	while (n < AQ_USB_RETRIES) {
+		if ((i = libusb_claim_interface(handle, 0)) != LIBUSB_ERROR_BUSY)
+			break;
+		sleep(AQ_USB_RETRY_DELAY);
+	}
+	if (i != 0) {
+		*err = aq_strcat("failed to claim interface: ", aq_strerr(i));
+		libusb_close(handle);
+		return -1;
 	}
 
 	if ((i = libusb_interrupt_transfer(handle, AQ_USB_ENDP, aq_data_buffer,
 			AQ_USB_READ_LEN, &transferred, AQ_USB_TIMEOUT)) != 0) {
-		*err = "failed to read from device";
-		goto err_exit1;
+		*err = aq_strcat("failed to read from device: ", aq_strerr(i));
+		libusb_release_interface(handle, 0);
+		libusb_close(handle);
+		return -1;
 	}
 
 	libusb_release_interface(handle, 0);
 	libusb_close(handle);
 
 	return 0;
-
-err_exit1: libusb_release_interface(handle, 0);
-err_exit2: libusb_close(handle);
-	return -1;
 }
 
 

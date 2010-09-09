@@ -94,6 +94,8 @@ int				aq_dev_poll(char **err);
 /* helper functions */
 ushort			aq_get_short(uchar *buffer, int offset);
 char			*aq_get_string(uchar *buffer, int offset, int max_length);
+char 			*aq_libusb_strerr(int err);
+char 			*aq_strcat(char *str1, char *str2);
 
 /* data extraction, conversion */
 char 			*aq_get_name();

@@ -8,7 +8,7 @@
 
  - [aerocli]    replace arg-parsing with stdopts
  
- - [all]        maybe implement time synchronization (as the only non-read-only 
+ - [all]        maybe implement time synchronization (as the only non-readonly 
                 function)
                 
  - [device]     add documentation using Doxygen
