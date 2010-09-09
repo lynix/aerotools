@@ -20,7 +20,7 @@
 #define AEROD_H_
 
 /* includes */
-#include "device.h"
+#include "libaquaero.h"
 #include <stdio.h>
 #include <stdarg.h>					/* variable arguments 	*/
 #include <syslog.h>					/* syslog()				*/

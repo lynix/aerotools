@@ -5,10 +5,10 @@ INSTALLDIR = $(DESTDIR)$(PREFIX)
 
 all : aerocli aerod
 
-aerocli : aerocli.o device.o
+aerocli : aerocli.o libaquaero.o
 	$(CC) $(CFLAGS) -lusb-1.0 $(LDFLAGS) -o $@ $^
 	
-aerod : aerod.o device.o
+aerod : aerod.o libaquaero.o
 	$(CC) $(CFLAGS) -lusb-1.0 -lpthread $(LDFLAGS) -o $@ $^
 
 aerocli.o : aerocli.c aerocli.h
@@ -17,7 +17,7 @@ aerocli.o : aerocli.c aerocli.h
 aerod.o : aerod.c aerod.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
-device.o : device.c device.h
+libaquaero.o : libaquaero.c libaquaero.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
 install: aerocli aerod

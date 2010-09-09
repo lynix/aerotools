@@ -16,7 +16,7 @@
  * along with aerotools. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "device.h"
+#include "libaquaero.h"
 
 
 /*
@@ -269,8 +269,8 @@ int aq_dev_init(char **err)
 	int		i, n = 0;
 	struct 	libusb_device_handle *handle;
 
-	if (libusb_open(aq_usb_dev, &handle) != 0) {
-	    *err = aq_strcat("failed to open device: ", aq_strerr(i));
+	if ((i = libusb_open(aq_usb_dev, &handle)) != 0) {
+	    *err = aq_strcat("failed to open device: ", aq_libusb_strerr(i));
 	    return -1;
 	}
 
@@ -278,7 +278,8 @@ int aq_dev_init(char **err)
 	if (libusb_kernel_driver_active(handle, 0)) {
 		i = libusb_detach_kernel_driver(handle, 0);
 		if (i != 0 && i != LIBUSB_ERROR_NOT_FOUND) {
-			*err = aq_strcat("failed to detach kernel driver: ", aq_strerr(i));
+			*err = aq_strcat("failed to detach kernel driver: ",
+					aq_libusb_strerr(i));
 			libusb_close(handle);
 			return -1;
 		}
@@ -292,7 +293,7 @@ int aq_dev_init(char **err)
 		sleep(AQ_USB_RETRY_DELAY);
 	}
 	if (i != 0) {
-		*err = aq_strcat("failed to set configuration: ", aq_strerr(i));
+		*err = aq_strcat("failed to set configuration: ", aq_libusb_strerr(i));
 		libusb_close(handle);
 		return -1;
 	}
@@ -313,7 +314,7 @@ int aq_dev_poll(char **err)
 	}
 
 	if ((i = libusb_open(aq_usb_dev, &handle)) != 0) {
-	    *err = aq_strcat("failed to open device: ", aq_strerr(i));
+	    *err = aq_strcat("failed to open device: ", aq_libusb_strerr(i));
 	    return -1;
 	}
 
@@ -323,14 +324,14 @@ int aq_dev_poll(char **err)
 		sleep(AQ_USB_RETRY_DELAY);
 	}
 	if (i != 0) {
-		*err = aq_strcat("failed to claim interface: ", aq_strerr(i));
+		*err = aq_strcat("failed to claim interface: ", aq_libusb_strerr(i));
 		libusb_close(handle);
 		return -1;
 	}
 
 	if ((i = libusb_interrupt_transfer(handle, AQ_USB_ENDP, aq_data_buffer,
 			AQ_USB_READ_LEN, &transferred, AQ_USB_TIMEOUT)) != 0) {
-		*err = aq_strcat("failed to read from device: ", aq_strerr(i));
+		*err = aq_strcat("failed to read from device: ", aq_libusb_strerr(i));
 		libusb_release_interface(handle, 0);
 		libusb_close(handle);
 		return -1;

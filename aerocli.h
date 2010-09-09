@@ -20,7 +20,7 @@
 #define AEROCLI_H_
 
 /* includes */
-#include "device.h"
+#include "libaquaero.h"
 #include <stdio.h>
 #include <sys/stat.h>		/* open() */
 #include <fcntl.h>			/* open() */
