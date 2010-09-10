@@ -164,7 +164,6 @@ int main(int argc, char *argv[])
     struct 	options opts;
     struct 	aquaero_data *aq_data;
 
-
     /* parse cmdline arguments */
     init_opts(&opts);
     parse_cmdline(&opts, argc, argv);
@@ -228,6 +227,8 @@ int main(int argc, char *argv[])
     	}
     }
     if ((d = aq_data->flow_value) != AQ_FLOW_NCONN || opts.all) {
+    	putchar('\n');
+    	print_heading("Flow sensors");
     	if (d != AQ_FLOW_NCONN) {
 			printf("%-10s %2.2fl/h\n", aq_data->flow_name, d);
 		} else {

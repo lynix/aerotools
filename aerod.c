@@ -146,21 +146,23 @@ int poll_data()
 {
 	char *aquaero_data, *hddtemp_data, *err_msg;
 
-	if ((aquaero_data = poll_aquaero(&err_msg)) == NULL) {
+	if ((aquaero_data = poll_aquaero(&err_msg)) == NULL)
 		log_msg(LOG_ERR, "error reading from aquaero(R): %s", err_msg);
-		aquaero_data = "";
-	}
+
 	if (opts.hddtemp) {
-		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL) {
+		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL)
 			log_msg(LOG_ERR, "failed to retrieve data from hddtemp");
-		} else {
-			if ((aquaero_data = realloc(aquaero_data, strlen(aquaero_data) +
-					strlen(hddtemp_data) + 1)) == NULL) {
-				log_msg(LOG_ERR, "out-of-memory concatenating data strings");
-				return -1;
-			}
-			strcat(aquaero_data, hddtemp_data);
-			free(hddtemp_data);
+		else {
+			if (aquaero_data != NULL) {
+				if ((aquaero_data = realloc(aquaero_data, strlen(aquaero_data) +
+						strlen(hddtemp_data) + 1)) == NULL) {
+					log_msg(LOG_ERR, "out-of-memory joining data strings");
+					return -1;
+				}
+				strcat(aquaero_data, hddtemp_data);
+				free(hddtemp_data);
+			} else
+				aquaero_data = hddtemp_data;
 		}
 	}
 
