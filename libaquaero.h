@@ -24,6 +24,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+/* DEBUG */
+	#include <stdio.h>
+/* DEBUG */
 
 /* usb device communication related constants */
 #define AQ_USB_VID 				0x0c70
@@ -85,6 +88,23 @@ struct aquaero_data {
 	double 		temp_values[AQ_TEMP_NUM];
 	double		flow_value;
 };
+
+/* error messages */
+#define LIBUSB_STR_SUCCESS				"success";
+#define LIBUSB_STR_ERR_IO				"I/O error";
+#define LIBUSB_STR_ERR_INVALID_PARAM	"invalid parameter";
+#define LIBUSB_STR_ERR_ACCESS			"access denied";
+#define LIBUSB_STR_ERR_NO_DEVICE		"no such device";
+#define LIBUSB_STR_ERR_NOT_FOUND		"entity not found";
+#define LIBUSB_STR_ERR_BUSY				"resource busy";
+#define LIBUSB_STR_ERR_TIMEOUT			"operation timed out";
+#define LIBUSB_STR_ERR_OVERFLOW			"overflow";
+#define LIBUSB_STR_ERR_PIPE				"pipe error";
+#define LIBUSB_STR_ERR_INTERRUPTED		"syscall interrupted";
+#define LIBUSB_STR_ERR_NO_MEM			"insufficient memory";
+#define LIBUSB_STR_ERR_NOT_SUPPORTED	"operation not supported";
+#define LIBUSB_STR_ERR_OTHER			"other error";
+#define LIBUSB_STR_ERR_UNKNOWN			"unknown error";
 
 /* device communication */
 libusb_device 	*aq_dev_find();

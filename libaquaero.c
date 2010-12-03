@@ -54,6 +54,14 @@ char *aq_strcat(char *str1, char *str2)
 {
 	char *ret;
 
+	/* DEBUG */
+		if (str1 == NULL)
+			str1 = "NULL";
+		if (str2 == NULL)
+			str2 = "NULL";
+		printf("aq_strcat(): concatenating '%s' and '%s'\n", str1, str2);
+	/* DEBUG */
+
 	if ((ret = malloc(strlen(str1) + strlen(str2) + 1)) == NULL)
 		return NULL;
 	strcpy(ret, str1);
@@ -65,21 +73,21 @@ char *aq_strcat(char *str1, char *str2)
 char *aq_libusb_strerr(int err)
 {
 	switch (err) {
-		case LIBUSB_SUCCESS:				return "success";
-		case LIBUSB_ERROR_IO:				return "I/O error";
-		case LIBUSB_ERROR_INVALID_PARAM:	return "invalid parameter";
-		case LIBUSB_ERROR_ACCESS:			return "access denied";
-		case LIBUSB_ERROR_NO_DEVICE:		return "no such device";
-		case LIBUSB_ERROR_NOT_FOUND:		return "entity not found";
-		case LIBUSB_ERROR_BUSY:				return "resource busy";
-		case LIBUSB_ERROR_TIMEOUT:			return "operation timed out";
-		case LIBUSB_ERROR_OVERFLOW:			return "overflow";
-		case LIBUSB_ERROR_PIPE:				return "pipe error";
-		case LIBUSB_ERROR_INTERRUPTED:		return "syscall interrupted";
-		case LIBUSB_ERROR_NO_MEM:			return "insufficient memory";
-		case LIBUSB_ERROR_NOT_SUPPORTED:	return "operation not supported";
-		case LIBUSB_ERROR_OTHER:			return "other error";
-		default:							return "unknown error";
+		case LIBUSB_SUCCESS:				return LIBUSB_STR_SUCCESS;
+		case LIBUSB_ERROR_IO:				return LIBUSB_STR_ERR_IO;
+		case LIBUSB_ERROR_INVALID_PARAM:	return LIBUSB_STR_ERR_INVALID_PARAM;
+		case LIBUSB_ERROR_ACCESS:			return LIBUSB_STR_ERR_ACCESS;
+		case LIBUSB_ERROR_NO_DEVICE:		return LIBUSB_STR_ERR_NO_DEVICE;
+		case LIBUSB_ERROR_NOT_FOUND:		return LIBUSB_STR_ERR_NOT_FOUND;
+		case LIBUSB_ERROR_BUSY:				return LIBUSB_STR_ERR_BUSY;
+		case LIBUSB_ERROR_TIMEOUT:			return LIBUSB_STR_ERR_TIMEOUT;
+		case LIBUSB_ERROR_OVERFLOW:			return LIBUSB_STR_ERR_OVERFLOW;
+		case LIBUSB_ERROR_PIPE:				return LIBUSB_STR_ERR_PIPE;
+		case LIBUSB_ERROR_INTERRUPTED:		return LIBUSB_STR_ERR_INTERRUPTED;
+		case LIBUSB_ERROR_NO_MEM:			return LIBUSB_STR_ERR_NO_MEM;
+		case LIBUSB_ERROR_NOT_SUPPORTED:	return LIBUSB_STR_ERR_NOT_SUPPORTED;
+		case LIBUSB_ERROR_OTHER:			return LIBUSB_STR_ERR_OTHER;
+		default:							return LIBUSB_STR_ERR_UNKNOWN;
 	}
 }
 

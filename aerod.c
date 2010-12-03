@@ -34,8 +34,14 @@ int main(int argc, char *argv[])
     parse_cmdline(argc, argv);
 
     /* initialize device communication */
+    err_msg = NULL;
 	if (aquaero_init(&err_msg) != 0)
-		err_die("initialization failed: %s", err_msg);
+		/* DEBUG */
+		if (err_msg != NULL)
+			err_die("initialization failed: %s", err_msg);
+		else
+			err_die("initialization failed and NULL as err_msg");
+		/* DEBUG */
 
     /* daemonize */
     if (opts.fork) {
@@ -60,11 +66,10 @@ int main(int argc, char *argv[])
     }
 
     /* write pid-file */
-    if (opts.pidfile) {
-		if (write_pidfile(getpid()) != 0) {
-			log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE, strerror(errno));
-		}
-    }
+    if (opts.pidfile)
+		if (write_pidfile(pid) != 0)
+			log_msg(LOG_WARNING, "failed to write %s: %s", PID_FILE,
+					strerror(errno));
 
     /* register signals */
     signal(SIGINT, signal_handler);
@@ -73,24 +78,20 @@ int main(int argc, char *argv[])
     signal(SIGQUIT, signal_handler);
 
     /* setup data sync mutex */
-    if (pthread_mutex_init(&data_lock, NULL) != 0) {
+    if (pthread_mutex_init(&data_lock, NULL) != 0)
     	err_die("failed to setup mutex, terminating");
-	}
 
     /* initial poll */
-    if (poll_data() != 0) {
+    if (poll_data() != 0)
     	die();
-    }
 
     /* start tcp server, spawn handler thread */
-	if (tcp_start_server() != 0) {
+	if (tcp_start_server() != 0)
 		err_die("error opening tcp server socket, terminating");
-	}
-	if (pthread_create(&tcp_thread, NULL, tcp_handler, NULL) != 0) {
+	if (pthread_create(&tcp_thread, NULL, tcp_handler, NULL) != 0)
 		err_die("error spawning listen-thread, terminating");
-	} else {
+	else
 		log_msg(LOG_INFO, "listening on port %d", opts.port);
-	}
 
 	/* start infinite polling-loop */
 	while (1) {
@@ -99,6 +100,8 @@ int main(int argc, char *argv[])
 		}
 		sleep(opts.interval);
 	}
+
+	return 0;
 }
 
 int tcp_start_server()
@@ -127,7 +130,7 @@ int tcp_start_server()
 
 void *tcp_handler()
 {
-	int connection_sock = -1;
+	int connection_sock;
 
 	while (1) {
 		if ((connection_sock = accept(server_sock, NULL, NULL)) < 0) {
@@ -298,6 +301,10 @@ void signal_handler(int signal)
 			log_msg(LOG_WARNING, "received SIGTERM, terminating");
 			die();
 			break;
+		case SIGHUP:
+			log_msg(LOG_WARNING, "received SIGHUP, terminating");
+			die();
+			break;
 		case SIGINT:
 			log_msg(LOG_WARNING, "received SIGINT, terminating");
 			die();
@@ -370,7 +377,7 @@ void parse_cmdline(int argc, char *argv[])
 	        		fprintf (stderr, "option -%c requires an argument.\n",
 	        				optopt);
 	        	} else {
-	        		log_msg(LOG_ERR, "unknown option \"-%c\".\nTry -h for help.",
+	        		log_msg(LOG_ERR, "unknown option \"-%c\". Try -h for help.",
 	        				optopt);
 				}
 				exit(EXIT_FAILURE);
