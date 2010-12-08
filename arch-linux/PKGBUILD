@@ -8,7 +8,7 @@ pkgdesc="CLI and hddtemp proxy for querying aquaero(R) 4.0 USB devices"
 arch=('i686' 'x86_64')
 url="http://github.com/lynix/aerotools/"
 license=('GPL3')
-depends=('libusb1>=1.0.8')
+depends=('libusb>=1.0.8')
 makedepends=('git' 'pkgconfig')
 provides=('aerotools')
 conflicts=('aerotools')
@@ -20,16 +20,18 @@ _gitroot="git://github.com/lynix/aerotools.git"
 build() {
   msg "Connecting to GIT server..."
   if [[ -d $srcdir/$pkgname-$pkgver ]]; then
-    cd $srcdir/$pkgname-$pkgver && git pull origin || return 1
+    cd $srcdir/$pkgname-$pkgver && git pull origin
   else
-    git clone $_gitroot $srcdir/$pkgname-$pkgver || return 1
+    git clone $_gitroot $srcdir/$pkgname-$pkgver
     cd $srcdir/$pkgname-$pkgver
   fi
 
   msg "GIT checkout done or server timeout"
 
+	make
+}
 
-	make || return 1
+package() {
 	make DESTDIR=$pkgdir PREFIX=/usr install
 }
 
