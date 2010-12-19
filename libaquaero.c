@@ -54,14 +54,6 @@ char *aq_strcat(char *str1, char *str2)
 {
 	char *ret;
 
-	/* DEBUG */
-		if (str1 == NULL)
-			str1 = "NULL";
-		if (str2 == NULL)
-			str2 = "NULL";
-		printf("aq_strcat(): concatenating '%s' and '%s'\n", str1, str2);
-	/* DEBUG */
-
 	if ((ret = malloc(strlen(str1) + strlen(str2) + 1)) == NULL)
 		return NULL;
 	strcpy(ret, str1);
