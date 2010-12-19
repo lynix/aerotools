@@ -35,13 +35,10 @@ int main(int argc, char *argv[])
 
     /* initialize device communication */
     err_msg = NULL;
-	if (aquaero_init(&err_msg) != 0)
-		/* DEBUG */
-		if (err_msg != NULL)
-			err_die("initialization failed: %s", err_msg);
-		else
-			err_die("initialization failed and NULL as err_msg");
-		/* DEBUG */
+	if (aquaero_init(&err_msg) != 0) {
+		log_msg(LOG_ERR, err_msg);
+		exit(EXIT_FAILURE);
+	}
 
     /* daemonize */
     if (opts.fork) {

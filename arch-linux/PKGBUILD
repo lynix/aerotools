@@ -2,7 +2,7 @@
 # Maintainer: lynix <lynix47@gmail.com>
 
 pkgname=aerotools-git
-pkgver=20100818
+pkgver=20101208
 pkgrel=1
 pkgdesc="CLI and hddtemp proxy for querying aquaero(R) 4.0 USB devices"
 arch=('i686' 'x86_64')
