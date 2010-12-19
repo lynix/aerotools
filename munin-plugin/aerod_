@@ -1,0 +1,123 @@
+#!/bin/bash
+#
+# Plugin to read values from aerod (part of aerotools)
+#
+# 2010 by lynix <lynix47@gmail.com>
+#
+#
+# Magic markers - optional - used by installation scripts and
+# munin-config:
+#
+#%# family=manual
+#%# capabilities=autoconf
+
+PORT=7635
+
+MODE="$(echo "$0" | cut -d '_' -f 2)"
+DATA="$(curl -s http://localhost:$PORT)"
+
+if [ "$1" == "autoconf" ]; then
+	echo "yes"
+	exit 0
+fi
+
+if [ -z "$DATA" ]; then
+	echo "unable to read from aerod"
+	exit 1
+fi
+
+
+function get_name() {
+	N=2
+	ENTRY="$(echo "$DATA" | cut -d '|' -f $N)"
+	while [ "$ENTRY" != "" ]; do
+		if [ "$ENTRY" == "/dev/$1" ]; then
+			break
+		fi
+		N=$((N + 5))
+		ENTRY="$(echo "$DATA" | cut -d '|' -f $N)"
+	done
+	if [ "$ENTRY" == "/dev/$1" ]; then
+		N=$((N + 1))
+		echo "$DATA" | cut -d '|' -f $N
+	else
+		echo "unknown"
+	fi
+}
+
+function get_value() {
+	N=2
+	ENTRY="$(echo "$DATA" | cut -d '|' -f $N)"
+	while [ "$ENTRY" != "" ]; do
+		if [ "$ENTRY" == "/dev/$1" ]; then
+			break
+		fi
+		N=$((N + 5))
+		ENTRY="$(echo "$DATA" | cut -d '|' -f $N)"
+	done
+	if [ "$ENTRY" == "/dev/$1" ]; then
+		N=$((N + 2))
+		echo "$DATA" | cut -d '|' -f $N
+	else
+		echo "unknown"
+	fi
+}
+
+
+case "$MODE" in
+	temp)
+		case "$1" in
+			config)
+				echo "graph_title aerod temperatures"
+		        echo "graph_args --base 1000 -l 0"
+        		echo "graph_vlabel °C"
+		        echo "graph_category Aquaero"
+        		echo "graph_order temp1 temp2 temp3 temp4 temp5 temp6"
+				for I in $(seq 6); do
+					echo "temp$I.label $(get_name "temp$I")"
+				done
+				;;
+			*)
+				for I in $(seq 6); do
+					echo "temp$I.value $(get_value "temp$I")"
+				done
+				;;
+		esac
+		;;
+	flow)
+		case "$1" in
+			config)
+				echo "graph_title aerod flow"
+		        echo "graph_args --base 1000 -l 0"
+        		echo "graph_vlabel l/min"
+		        echo "graph_category Aquaero"
+        		echo "graph_order flow1"
+		        echo "flow1.label $(get_name "flow")"
+				;;
+			*)
+				echo "flow1.value $(get_value "flow")"
+				;;
+		esac
+		;;
+	fan)
+		case "$1" in
+			config)
+				echo "graph_title aerod fan rpm"
+		        echo "graph_args --base 1000 -l 0"
+        		echo "graph_vlabel rpm"
+		        echo "graph_category Aquaero"
+        		echo "graph_order fan1 fan2 fan3 fan4"
+				for I in $(seq 4); do
+					echo "fan$I.label $(get_name "fan$I")"
+				done
+				;;
+			*)
+				for I in $(seq 4); do
+					echo "fan$I.value $(get_value "fan$I")"
+				done
+				;;
+		esac
+		;;
+esac
+
+exit 0

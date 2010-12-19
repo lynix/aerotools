@@ -1,5 +1,7 @@
 
  - [aerod]      fix SEGFAULT occuring on failed device read, realloc()
+
+ - [aerod]		implement rest of interface (e.g. fans)
  
  - [aerod]      reorganize logging and termination
 
