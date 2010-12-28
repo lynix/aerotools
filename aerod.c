@@ -87,14 +87,12 @@ int main(int argc, char *argv[])
 		err_die("error opening tcp server socket, terminating");
 	if (pthread_create(&tcp_thread, NULL, tcp_handler, NULL) != 0)
 		err_die("error spawning listen-thread, terminating");
-	else
-		log_msg(LOG_INFO, "listening on port %d", opts.port);
+	log_msg(LOG_INFO, "listening on port %d", opts.port);
 
 	/* start infinite polling-loop */
 	while (1) {
-		if (poll_data() != 0) {
+		if (poll_data() != 0)
 			die();
-		}
 		sleep(opts.interval);
 	}
 
@@ -129,12 +127,9 @@ void *tcp_handler()
 {
 	int connection_sock;
 
-	while (1) {
-		if ((connection_sock = accept(server_sock, NULL, NULL)) < 0) {
-		    break;
-		}
+	while ((connection_sock = accept(server_sock, NULL, NULL)) >= 0) {
 		pthread_mutex_lock(&data_lock);
-		send(connection_sock, data_str, strlen(data_str), 0);
+		send(connection_sock, data_str, strlen(data_str)+1, 0);
 		pthread_mutex_unlock(&data_lock);
 		close(connection_sock);
 	}
@@ -144,31 +139,32 @@ void *tcp_handler()
 
 int poll_data()
 {
-	char *aquaero_data, *hddtemp_data, *err_msg;
+	/* TODO: oh my, heavy refactoring needed here */
+	char *poll_str, *hddtemp_data, *err_msg;
 
-	if ((aquaero_data = poll_aquaero(&err_msg)) == NULL)
+	if ((poll_str = poll_aquaero(&err_msg)) == NULL)
 		log_msg(LOG_ERR, "error reading from aquaero(R): %s", err_msg);
 
 	if (opts.hddtemp) {
 		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL)
 			log_msg(LOG_ERR, "failed to retrieve data from hddtemp");
 		else {
-			if (aquaero_data != NULL) {
-				if ((aquaero_data = realloc(aquaero_data, strlen(aquaero_data) +
+			if (poll_str != NULL) {
+				if ((poll_str = realloc(poll_str, strlen(poll_str) +
 						strlen(hddtemp_data) + 1)) == NULL) {
 					log_msg(LOG_ERR, "out-of-memory joining data strings");
 					return -1;
 				}
-				strcat(aquaero_data, hddtemp_data);
+				strcat(poll_str, hddtemp_data);
 				free(hddtemp_data);
 			} else
-				aquaero_data = hddtemp_data;
+				poll_str = hddtemp_data;
 		}
 	}
 
 	pthread_mutex_lock(&data_lock);
 	free(data_str);
-	data_str = aquaero_data;
+	data_str = poll_str;
 	pthread_mutex_unlock(&data_lock);
 
 	return 0;
@@ -178,64 +174,45 @@ char *poll_aquaero(char **err_msg)
 {
 	struct 	aquaero_data *aq_data;
 	int		i;
-	char 	*tmp_data_str, *position, *temp_line;
-	double 	d;
+	char 	*aquaero_data_str, *position;
 
 	/* setup device, read raw data */
-	if ((aq_data = aquaero_poll_data(err_msg)) == NULL) {
+	if ((aq_data = aquaero_poll_data(err_msg)) == NULL)
 		return NULL;
-	}
 
-	/* process data */
-	tmp_data_str = NULL;
-	if ((temp_line = malloc(50)) == NULL) {
+	if ((aquaero_data_str = malloc(AQ_DATA_BUFLEN)) == NULL) {
 		free(aq_data);
-		free(tmp_data_str);
 		return NULL;
 	}
+	position = aquaero_data_str;
 
-	position = tmp_data_str;
-	for (i = 0; i < AQ_TEMP_NUM; i++) {
-		if ((d = aq_data->temp_values[i]) == AQ_TEMP_NCONN) {
-			continue;
-		}
-		sprintf(temp_line, "|/dev/temp%d|%s|%.0f|C|", i+1,
-				aq_data->temp_names[i], d);
-		if (tmp_data_str == NULL) {
-			tmp_data_str = strdup(temp_line);
-		} else {
-			if ((tmp_data_str = realloc(tmp_data_str, strlen(temp_line) +
-					strlen(tmp_data_str) + 1)) == NULL) {
-				free(tmp_data_str);
-				free(aq_data);
-				free(temp_line);
-				return NULL;
-			}
-			strcat(tmp_data_str, temp_line);
-		}
+	/* fans */
+	for (i=0; i<AQ_FAN_NUM; i++) {
+		/* TODO: handle disconnected fans */
+		/* TODO: OK to use other units that F/C in hddtemp? */
+		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data->fan_names[i],
+				aq_data->fan_rpm[i]);
+		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
+	/* temperature sensors */
+	for (i=0; i<AQ_TEMP_NUM; i++) {
+		if (aq_data->temp_values[i] == AQ_TEMP_NCONN)
+			continue;
+		sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
+				aq_data->temp_names[i],	aq_data->temp_values[i]);
+		position = aquaero_data_str + strlen(aquaero_data_str);
+	}
+	/* flow sensor */
 	if (aq_data->flow_value != AQ_FLOW_NCONN) {
 		/* TODO: OK to use other units that F/C in hddtemp? */
-		sprintf(temp_line, "|/dev/flow|%s|%.0f|C|", aq_data->flow_name,
+		sprintf(position, "|/dev/flow|%s|%.0f|C|", aq_data->flow_name,
 				aq_data->flow_value);
-		if (tmp_data_str == NULL) {
-			tmp_data_str = strdup(temp_line);
-		} else {
-			if ((tmp_data_str = realloc(tmp_data_str, strlen(temp_line) +
-					strlen(tmp_data_str) + 1)) == NULL) {
-				free(tmp_data_str);
-				free(aq_data);
-				free(temp_line);
-				return NULL;
-			}
-			strcat(tmp_data_str, temp_line);
-		}
+		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 
-	free(temp_line);
 	free(aq_data);
 
-	return tmp_data_str;
+	return aquaero_data_str;
 }
 
 char *poll_hddtemp(char *host, unsigned short port)
@@ -244,6 +221,7 @@ char *poll_hddtemp(char *host, unsigned short port)
 	int		client_sock, bytes_read;
 	struct 	sockaddr_in server_addr;
 
+	/* TODO: overflow prevention here... */
 	if ((hddtemp_buffer = malloc(MAX_LINE)) == NULL) {
 		return NULL;
 	}

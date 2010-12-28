@@ -46,6 +46,7 @@
 #define PID_FILE		"/var/run/aerod.pid"
 #define Q_LENGTH		1024
 #define MAX_LINE		1024
+#define AQ_DATA_BUFLEN	308
 
 /* cmdline options structure */
 struct options {

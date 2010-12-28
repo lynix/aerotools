@@ -1,10 +1,9 @@
 
  - [aerod]      fix SEGFAULT occuring on failed device read, realloc()
 
- - [aerod]		implement rest of interface (e.g. fans)
+ - [aerod]		question use of real units (e.g. rpm, l/min) in hddtemp
+				protocol
  
- - [aerod]      reorganize logging and termination
-
  - [aerocli]    add "-n" switch for "-f" and "-s" to suppress units, for easy
                 integration in bash-scripts, graph-drawing, etc.
 
