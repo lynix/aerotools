@@ -73,14 +73,24 @@ case "$MODE" in
         		echo "graph_vlabel °C"
 				echo "graph_scale no"
 		        echo "graph_category Aquaero"
-        		echo "graph_order temp1 temp2 temp3 temp4 temp5 temp6"
+				GRAPH_ORDER=""
 				for I in $(seq 6); do
-					echo "temp$I.label $(get_name "temp$I")"
+					LABEL="$(get_name "temp$I")"
+					if [ "$LABEL" != "unknown" ]; then
+						GRAPH_ORDER="$GRAPH_ORDER temp$I"
+						echo "temp$I.label $LABEL"
+					fi
 				done
+				if [ "$GRAPH_ORDER" != "" ]; then
+					echo "graph_order$GRAPH_ORDER"
+				fi
 				;;
 			*)
 				for I in $(seq 6); do
-					echo "temp$I.value $(get_value "temp$I")"
+					VALUE="$(get_value "temp$I")"
+					if [ "$VALUE" != "unknown" ]; then
+						echo "temp$I.value $VALUE"
+					fi
 				done
 				;;
 		esac
@@ -104,19 +114,30 @@ case "$MODE" in
 	fan)
 		case "$1" in
 			config)
+				
 				echo "graph_title aerod fan rpm"
 		        echo "graph_args --base 1000 -l 0"
         		echo "graph_vlabel rpm"
 				echo "graph_scale no"
 		        echo "graph_category Aquaero"
-        		echo "graph_order fan1 fan2 fan3 fan4"
+				GRAPH_ORDER=""
 				for I in $(seq 4); do
-					echo "fan$I.label $(get_name "fan$I")"
+					LABEL="$(get_name "fan$I")"
+					if [ "$LABEL" != "unknown" ]; then
+						GRAPH_ORDER="$GRAPH_ORDER fan$I"
+						echo "fan$I.label $LABEL"
+					fi
 				done
+				if [ "$GRAPH_ORDER" != "" ]; then
+					echo "graph_order$GRAPH_ORDER"
+				fi
 				;;
 			*)
 				for I in $(seq 4); do
-					echo "fan$I.value $(get_value "fan$I")"
+					VALUE="$(get_value "fan$I")"
+					if [ "$VALUE" != "unknown" ]; then
+						echo "fan$I.value $VALUE"
+					fi
 				done
 				;;
 		esac
