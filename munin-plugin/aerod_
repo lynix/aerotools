@@ -71,6 +71,7 @@ case "$MODE" in
 				echo "graph_title aerod temperatures"
 		        echo "graph_args --base 1000 -l 0"
         		echo "graph_vlabel °C"
+				echo "graph_scale no"
 		        echo "graph_category Aquaero"
         		echo "graph_order temp1 temp2 temp3 temp4 temp5 temp6"
 				for I in $(seq 6); do
@@ -90,6 +91,7 @@ case "$MODE" in
 				echo "graph_title aerod flow"
 		        echo "graph_args --base 1000 -l 0"
         		echo "graph_vlabel l/min"
+				echo "graph_scale no"
 		        echo "graph_category Aquaero"
         		echo "graph_order flow1"
 		        echo "flow1.label $(get_name "flow")"
@@ -105,6 +107,7 @@ case "$MODE" in
 				echo "graph_title aerod fan rpm"
 		        echo "graph_args --base 1000 -l 0"
         		echo "graph_vlabel rpm"
+				echo "graph_scale no"
 		        echo "graph_category Aquaero"
         		echo "graph_order fan1 fan2 fan3 fan4"
 				for I in $(seq 4); do
