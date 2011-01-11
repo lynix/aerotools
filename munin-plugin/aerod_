@@ -70,7 +70,7 @@ case "$MODE" in
 			config)
 				echo "graph_title aerod temperatures"
 		        echo "graph_args --base 1000 -l 0"
-        		echo "graph_vlabel Â°C"
+        		echo "graph_vlabel °C"
 				echo "graph_scale no"
 		        echo "graph_category Aquaero"
 				GRAPH_ORDER=""
