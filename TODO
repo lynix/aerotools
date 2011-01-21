@@ -1,6 +1,4 @@
 
- - [aerod]      fix SEGFAULT occuring on failed device read, realloc()
-
  - [aerod]		question use of real units (e.g. rpm, l/min) in hddtemp
 				protocol
  

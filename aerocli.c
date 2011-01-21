@@ -158,11 +158,10 @@ void dump_data(char *file, char *buffer, int buffsize)
 
 int main(int argc, char *argv[])
 {
-	int 	i;
-	double 	d;
-	char 	*err_msg;
-    struct 	options opts;
-    struct 	aquaero_data *aq_data;
+	int		i;
+	char	*err_msg;
+    struct	options opts;
+    aquaero_data aq_data;
 
     /* parse cmdline arguments */
     init_opts(&opts);
@@ -173,7 +172,7 @@ int main(int argc, char *argv[])
     	err_die(err_msg);
 
     /* poll data from device */
-    if ((aq_data = aquaero_poll_data(&err_msg)) == NULL)
+    if (aquaero_poll_data(&aq_data, &err_msg) < 0)
     	err_die(err_msg);
 
     /* dump data if requested */
@@ -181,58 +180,57 @@ int main(int argc, char *argv[])
     	dump_data(opts.dump_fn, (char *)aquaero_get_buffer(), AQ_USB_READ_LEN);
     }
 
-    /* uninitialize device communication stuff */
+    /* finalize device communication stuff */
     aquaero_exit();
 
     /* print only selected data if requested */
     if (opts.fan_duty) {
-    	printf("%u%%\n", aq_data->fan_duty[opts.fan_duty-1]);
+    	printf("%u%%\n", aq_data.fans[opts.fan_duty-1].duty);
     	exit(EXIT_SUCCESS);
     }
     if (opts.fan_rpm) {
-    	printf("%urpm\n", aq_data->fan_rpm[opts.fan_rpm-1]);
+    	printf("%urpm\n", aq_data.fans[opts.fan_rpm-1].rpm);
     	exit(EXIT_SUCCESS);
     }
     if (opts.temp) {
-       	printf("%2.1f°C\n", aq_data->temp_values[opts.temp-1]);
+       	printf("%2.1f°C\n", aq_data.temps[opts.temp-1].value);
        	exit(EXIT_SUCCESS);
     }
 
     /* print data */
     if (opts.all) {
     	print_heading("Device data");
-    	printf("Name          %s\n", aq_data->device_name);
-    	printf("Firmware      %s\n", aq_data->firmware);
-    	printf("OS Version    %u\n", aq_data->os_version);
-    	printf("Serial        %u\n", aq_data->device_serial);
-    	printf("Produced      20%02u-%02u\n", aq_data->prod_year,
-    			aq_data->prod_month);
-    	printf("Flash count   %u\n", aq_data->flash_count);
+    	printf("Name          %s\n", aq_data.device.name);
+    	printf("Firmware      %s\n", aq_data.device.fw_name);
+    	printf("OS Version    %u\n", aq_data.device.os_version);
+    	printf("Serial        %u\n", aq_data.device.serial);
+    	printf("Produced      20%02u-%02u\n", aq_data.device.prod_year,
+    			aq_data.device.prod_month);
+    	printf("Flash count   %u\n", aq_data.device.flash_count);
     	putchar('\n');
     }
     print_heading("Fan sensors");
     for (i = 0; i < AQ_FAN_NUM; i++) {
     	/* TODO: handle disconnected ones */
-    	printf("%-10s %u%% @ %u rpm\n", aq_data->fan_names[i],
-    			aq_data->fan_duty[i], aq_data->fan_rpm[i]);
+    	printf("%-10s %u%% @ %u rpm\n", aq_data.fans[i].name,
+    			aq_data.fans[i].duty, aq_data.fans[i].rpm);
     }
     putchar('\n');
     print_heading("Temp sensors");
     for (i = 0; i < AQ_TEMP_NUM; i++) {
-    	d = aq_data->temp_values[i];
-    	if (d != AQ_TEMP_NCONN) {
-    		printf("%-10s %2.1f°C\n", aq_data->temp_names[i], d);
-    	} else if (opts.all) {
-    		printf("%-10s not connected\n", aq_data->temp_names[i]);
-    	}
+    	if (aq_data.temps[i].connected)
+    		printf("%-10s %2.1f°C\n", aq_data.temps[i].name,
+    				aq_data.temps[i].value);
+    	else if (opts.all)
+    		printf("%-10s not connected\n", aq_data.temps[i].name);
     }
-    if ((d = aq_data->flow_value) != AQ_FLOW_NCONN || opts.all) {
+    if (aq_data.flow.connected || opts.all) {
     	putchar('\n');
     	print_heading("Flow sensors");
-    	if (d != AQ_FLOW_NCONN) {
-			printf("%-10s %2.2fl/h\n", aq_data->flow_name, d);
+    	if (aq_data.flow.connected) {
+			printf("%-10s %2.2fl/h\n", aq_data.flow.name, aq_data.flow.value);
 		} else {
-			printf("%-10s not connected\n", aq_data->flow_name);
+			printf("%-10s not connected\n", aq_data.flow.name);
 		}
     }
 

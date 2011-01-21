@@ -60,34 +60,72 @@
 #define AQ_TEMP_NAME_OFFS  		0x037
 #define AQ_TEMP_VAL_LEN			2
 #define AQ_TEMP_VAL_OFFS		0x1cc
-#define AQ_TEMP_NAN				0x4e20
-#define AQ_TEMP_NCONN			-1.0
+#define AQ_TEMP_NCONN			0x7d0
 #define AQ_FLOW_NAME_LEN		10
 #define AQ_FLOW_NAME_OFFS		0x02c
 #define AQ_FLOW_VAL_OFFS		0x1c2
-#define AQ_FLOW_NAN				0x4e20
-#define AQ_FLOW_NCONN			-1.0
+#define AQ_FLOW_NCONN			0x0c8
 
 /* own types */
 typedef unsigned char uchar;
 
-/* aquaero(R) device data structure */
-struct aquaero_data {
-	char 		*device_name;
-	char 		*firmware;
+/* aquaero(R) device data structures */
+
+//enum fan_mode = { MANUAL_RPM, MANUAL_DUTY, ... };
+
+typedef struct {
+	char		*name;
+	char		duty;
+	ushort		rpm;
+//	ushort		set_rpm;
+//	ushort		set_duty;
+//	fan_mode	mode;
+//	ushort		max_rpm;
+//	ushort		pulse;
+//	uchar		min_power;
+//	struct 		aq_temp *sensors[2];
+//	char		connected;
+} aq_fan;
+
+typedef struct {
+	char		*name;
+	double		value;
+//	uchar		factor;
+//	uchar		offset;
+//	ushort		alarm;
+//	ushort		min;
+//	ushort		max;
+//	uchar		hyst;
+//	ushort		opt;
+	char		connected;
+//	char		is_flow;
+} aq_temp;
+
+typedef struct {
+	char		*name;
+	double		value;
+//	double		alarm[2];
+//	uchar		pulse;
+//	flow_mode	mode;
+	char		connected;
+} aq_flow;
+
+typedef struct {
+	char		*name;
+	char		*fw_name;
+	ushort 		os_version;
 	uchar 		prod_year;
 	uchar 		prod_month;
-	ushort 		device_serial;
+	ushort 		serial;
 	ushort 		flash_count;
-	ushort 		os_version;
-	char 		*fan_names[AQ_FAN_NUM];
-	char 		*temp_names[AQ_TEMP_NUM];
-	char		*flow_name;
-	ushort 		fan_rpm[AQ_FAN_NUM];
-	char 		fan_duty[AQ_FAN_NUM];
-	double 		temp_values[AQ_TEMP_NUM];
-	double		flow_value;
-};
+} aq_device;
+
+typedef struct {
+	aq_device	device;
+	aq_fan		fans[AQ_FAN_NUM];
+	aq_temp		temps[AQ_TEMP_NUM];
+	aq_flow		flow;
+} aquaero_data;
 
 /* error messages */
 #define LIBUSB_STR_SUCCESS				"success";
@@ -112,31 +150,21 @@ int				aq_dev_init(char **err);
 int				aq_dev_poll(char **err);
 
 /* helper functions */
-ushort			aq_get_short(uchar *buffer, int offset);
-char			*aq_get_string(uchar *buffer, int offset, int max_length);
-char 			*aq_libusb_strerr(int err);
-char 			*aq_strcat(char *str1, char *str2);
+ushort	aq_get_ushort(uchar *ptr);
+char	*aq_trim_str(uchar *start, int max_length);
+char 	*aq_libusb_strerr(int err);
+char 	*aq_strcat(char *str1, char *str2);
 
 /* data extraction, conversion */
-char 			*aq_get_name();
-char 			*aq_get_fw();
-char 			*aq_get_fan_name(char n);
-char    		*aq_get_temp_name(char n);
-char 			*aq_get_flow_name();
-char 			aq_get_fan_duty(char n);
-uchar 			aq_get_prod_year();
-uchar 			aq_get_prod_month();
-ushort 			aq_get_fan_rpm(char n);
-ushort 			aq_get_serial();
-ushort			aq_get_flash_count();
-ushort			aq_get_os();
-double 			aq_get_temp_value(char n);
-double			aq_get_flow_value();
+void 	aq_get_device(aq_device *device);
+void 	aq_get_fan(aq_fan *fan, short num);
+void	aq_get_temp(aq_temp *temp, short num);
+void	aq_get_flow(aq_flow *flow);
 
 /* all-in-one query functions */
-int				aquaero_init(char **err_msg);
-struct			aquaero_data *aquaero_poll_data(char **err_msg);
-uchar			*aquaero_get_buffer();
-void			aquaero_exit();
+int		aquaero_init(char **err_msg);
+int		aquaero_poll_data(aquaero_data *aq_data, char **err_msg);
+uchar	*aquaero_get_buffer();
+void	aquaero_exit();
 
 #endif /* DEVICE_H_ */

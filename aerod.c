@@ -172,45 +172,41 @@ int poll_data()
 
 char *poll_aquaero(char **err_msg)
 {
-	struct 	aquaero_data *aq_data;
+	aquaero_data aq_data;
 	int		i;
 	char 	*aquaero_data_str, *position;
 
 	/* setup device, read raw data */
-	if ((aq_data = aquaero_poll_data(err_msg)) == NULL)
+	if (aquaero_poll_data(&aq_data, err_msg) < 0)
 		return NULL;
 
-	if ((aquaero_data_str = malloc(AQ_DATA_BUFLEN)) == NULL) {
-		free(aq_data);
+	if ((aquaero_data_str = malloc(AQ_DATA_BUFLEN)) == NULL)
 		return NULL;
-	}
 	position = aquaero_data_str;
 
 	/* fans */
 	for (i=0; i<AQ_FAN_NUM; i++) {
 		/* TODO: handle disconnected fans */
 		/* TODO: OK to use other units that F/C in hddtemp? */
-		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data->fan_names[i],
-				aq_data->fan_rpm[i]);
+		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data.fans[i].name,
+				aq_data.fans[i].rpm);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 	/* temperature sensors */
 	for (i=0; i<AQ_TEMP_NUM; i++) {
-		if (aq_data->temp_values[i] == AQ_TEMP_NCONN)
+		if (!aq_data.temps[i].connected)
 			continue;
 		sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
-				aq_data->temp_names[i],	aq_data->temp_values[i]);
+				aq_data.temps[i].name,	aq_data.temps[i].value);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 	/* flow sensor */
-	if (aq_data->flow_value != AQ_FLOW_NCONN) {
+	if (aq_data.flow.connected) {
 		/* TODO: OK to use other units that F/C in hddtemp? */
-		sprintf(position, "|/dev/flow|%s|%.0f|C|", aq_data->flow_name,
-				aq_data->flow_value);
+		sprintf(position, "|/dev/flow|%s|%.0f|C|", aq_data.flow.name,
+				aq_data.flow.value);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
-
-	free(aq_data);
 
 	return aquaero_data_str;
 }
