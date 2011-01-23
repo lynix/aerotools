@@ -186,7 +186,6 @@ char *poll_aquaero(char **err_msg)
 
 	/* fans */
 	for (i=0; i<AQ_FAN_NUM; i++) {
-		/* TODO: handle disconnected fans */
 		/* TODO: OK to use other units that F/C in hddtemp? */
 		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data.fans[i].name,
 				aq_data.fans[i].rpm);

@@ -84,7 +84,6 @@ typedef struct {
 //	ushort		pulse;
 //	uchar		min_power;
 //	struct 		aq_temp *sensors[2];
-//	char		connected;
 } aq_fan;
 
 typedef struct {

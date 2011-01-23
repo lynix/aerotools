@@ -211,9 +211,9 @@ int main(int argc, char *argv[])
     }
     print_heading("Fan sensors");
     for (i = 0; i < AQ_FAN_NUM; i++) {
-    	/* TODO: handle disconnected ones */
-    	printf("%-10s %u%% @ %u rpm\n", aq_data.fans[i].name,
-    			aq_data.fans[i].duty, aq_data.fans[i].rpm);
+    	if (aq_data.fans[i].rpm > 0 || opts.all)
+			printf("%-10s %u%% @ %u rpm\n", aq_data.fans[i].name,
+					aq_data.fans[i].duty, aq_data.fans[i].rpm);
     }
     putchar('\n');
     print_heading("Temp sensors");
