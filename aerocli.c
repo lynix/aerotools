@@ -1,4 +1,4 @@
-/* Copyright lynix <lynix47@gmail.com>, 2010
+/* Copyright 2010-2011 lynix <lynix47@gmail.com>
  *
  * This file is part of aerotools.
  *
@@ -58,6 +58,7 @@ void init_opts(struct options *opts)
 	opts->fan_rpm = 0;
 	opts->fan_duty = 0;
 	opts->temp = 0;
+	opts->profile = 0;
 
 	return;
 }
@@ -80,14 +81,14 @@ void parse_cmdline(struct options *opts, int argc, char *argv[])
 				break;
 			case 's':
 				n = atoi(argv[i] + 3);
-				if (n < 1 || n > AQ_TEMP_NUM) {
+				if (n < 1 || n > AQ_NUM_TEMP) {
 					err_die("invalid sensor number");
 				}
 				opts->temp = n;
 				break;
 			case 'f':
 				n = atoi(argv[i] + 4);
-				if (n < 1 || n > AQ_FAN_NUM) {
+				if (n < 1 || n > AQ_NUM_FAN) {
 					err_die("invalid fan number");
 				}
 				switch (*(argv[i]+2)) {
@@ -106,6 +107,12 @@ void parse_cmdline(struct options *opts, int argc, char *argv[])
 				opts->dump = 1;
 				opts->dump_fn = argv[i] + 3;
 				break;
+			case 'p':
+				n = atoi(argv[i] + 3);
+				if (n != 1 && n != 2)		/* TODO: doubles with library */
+					err_die("invalid profile number");
+				opts->profile = n;
+				break;
 			default:
 				err_die("invalid arguments. Try -h for help.");
 				break;
@@ -117,14 +124,7 @@ void parse_cmdline(struct options *opts, int argc, char *argv[])
 
 void print_help()
 {
-	printf("%s  Copyright (c) 2010  lynix <lynix47@gmail.com>\n\n", PROGN);
-
-	printf("This program comes with ABSOLUTELY NO WARRANTY, use at\n");
-	printf("own risk. This is free software, and you are welcome to\n");
-	printf("redistribute it under the terms of the GNU General\n");
-	printf("Public License as published by the Free Software\n");
-	printf("Foundation, either version 3 of the License, or (at your\n");
-	printf("option) any later version.\n\n");
+	printf("%s Copyright (c) 2010-2011  lynix <lynix47@gmail.com>\n\n", PROGN);
 
 	printf("Usage:  %s [OPTIONS]\n\n", PROGN);
 
@@ -133,11 +133,12 @@ void print_help()
 	printf("  -fr N      print rpm of fan N (1<=N<=4)\n");
 	printf("  -fd N      print duty of fan N (1<=N<=4)\n");
 	printf("  -s  N      print temperature on sensor N (1<=N<=6)\n");
+	printf("  -p  N      load profile N (N in {1,2})\n");
 	printf("  -d  FILE   dump the raw data-buffer to FILE\n");
-	printf("  -h         display this usage and license information\n");
+	printf("  -h         display usage information\n");
 
 	printf("\n");
-	printf("This version of %s was built on %s %s.\n", PROGN, __DATE__, __TIME__);
+	printf("This %s version was built on %s %s.\n", PROGN, __DATE__, __TIME__);
 }
 
 void dump_data(char *file, char *buffer, int buffsize)
@@ -159,7 +160,7 @@ void dump_data(char *file, char *buffer, int buffsize)
 int main(int argc, char *argv[])
 {
 	int		i;
-	char	*err_msg;
+	char	*err;
     struct	options opts;
     aquaero_data aq_data;
 
@@ -168,17 +169,24 @@ int main(int argc, char *argv[])
     parse_cmdline(&opts, argc, argv);
 
     /* initialize device communication stuff */
-    if (aquaero_init(&err_msg) != 0)
-    	err_die(err_msg);
+    if (aquaero_init(&err) != 0)
+    	err_die(err);
+
+    /* change profile if requested */
+    if (opts.profile > 0) {
+    	if (aquaero_load_profile(opts.profile, &err) != 0)
+    		err_msg(err);
+    	aquaero_exit();
+    	exit(EXIT_SUCCESS);		/* TODO: fix return value */
+    }
 
     /* poll data from device */
-    if (aquaero_poll_data(&aq_data, &err_msg) < 0)
-    	err_die(err_msg);
+    if (aquaero_poll_data(&aq_data, &err) < 0)
+    	err_die(err);
 
     /* dump data if requested */
-    if (opts.dump) {
+    if (opts.dump)
     	dump_data(opts.dump_fn, (char *)aquaero_get_buffer(), AQ_USB_READ_LEN);
-    }
 
     /* finalize device communication stuff */
     aquaero_exit();
@@ -208,16 +216,21 @@ int main(int argc, char *argv[])
     			aq_data.device.prod_month);
     	printf("Flash count   %u\n", aq_data.device.flash_count);
     	putchar('\n');
+    	printf("Profile       %u\n", aq_data.device.profile);
+    	printf("Language      %s\n", aq_data.device.language);
+    	printf("Time          %u:%u:%u\n", aq_data.device.time_h,
+    			aq_data.device.time_m, aq_data.device.time_s);
+    	putchar('\n');
     }
     print_heading("Fan sensors");
-    for (i = 0; i < AQ_FAN_NUM; i++) {
+    for (i = 0; i < AQ_NUM_FAN; i++) {
     	if (aq_data.fans[i].rpm > 0 || opts.all)
 			printf("%-10s %u%% @ %u rpm\n", aq_data.fans[i].name,
 					aq_data.fans[i].duty, aq_data.fans[i].rpm);
     }
     putchar('\n');
     print_heading("Temp sensors");
-    for (i = 0; i < AQ_TEMP_NUM; i++) {
+    for (i = 0; i < AQ_NUM_TEMP; i++) {
     	if (aq_data.temps[i].connected)
     		printf("%-10s %2.1f°C\n", aq_data.temps[i].name,
     				aq_data.temps[i].value);

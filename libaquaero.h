@@ -1,4 +1,4 @@
-/* Copyright lynix <lynix47@gmail.com>, 2010
+/* Copyright 2010-2011 lynix <lynix47@gmail.com>
  *
  * This file is part of aerotools.
  *
@@ -24,105 +24,118 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-/* DEBUG */
-	#include <stdio.h>
-/* DEBUG */
+#include <stdint.h>
 
-/* usb device communication related constants */
+/* usb communication related constants */
 #define AQ_USB_VID 				0x0c70
 #define AQ_USB_PID 				0xf0b0
 #define AQ_USB_CONF				1
-#define AQ_USB_ENDP				0x81
+#define AQ_USB_ENDP_IN			0x081
+#define AQ_USB_ENDP_OUT			0x001
 #define AQ_USB_TIMEOUT			1000
 #define AQ_USB_RETRIES			3
 #define AQ_USB_RETRY_DELAY		200
 #define AQ_USB_READ_LEN			552
+#define AQ_USB_WRITE_LEN		376
+#define AQ_USB_WRITE_REQT		0x21
+#define AQ_USB_WRITE_REQ		0x09
+#define AQ_USB_WRITR_WVAL		0x200
+#define AQ_USB_WRITR_INDEX		0
 
-/* data offsets and formatting constants */
-#define AQ_DEV_FW_LEN			5
-#define AQ_DEV_FW_OFFS			0x1f9
-#define	AQ_DEV_NAME_LEN			9
-#define AQ_DEV_NAME_OFFS		0x079
-#define AQ_DEV_OS_OFFS			0x200
-#define AQ_DEV_FLASHC_OFFS		0x204
-#define AQ_DEV_SERIAL_OFFS		0x208
-#define AQ_DEV_PROD_M_OFFS		0x20a
-#define AQ_DEV_PROD_Y_OFFS		0x20b
-#define AQ_FAN_NUM				4
-#define AQ_FAN_NAME_LEN			10
-#define AQ_FAN_NAME_OFFS		0x000
-#define AQ_FAN_RPM_LEN			2
-#define AQ_FAN_RPM_OFFS			0x1ba
-#define AQ_FAN_PWR_LEN			1
-#define AQ_FAN_PWR_OFFS			0x0c6
-#define AQ_TEMP_NUM				6
-#define AQ_TEMP_NAME_LEN		10
-#define AQ_TEMP_NAME_OFFS  		0x037
-#define AQ_TEMP_VAL_LEN			2
-#define AQ_TEMP_VAL_OFFS		0x1cc
+
+/* write request types */
+#define AQ_REQ_DEFAULT			101
+#define AQ_REQ_EEPROM			102
+#define AQ_REQ_RAM				103
+#define AQ_REQ_PROFILE			107
+#define AQ_REQ_COPY				108
+
+/* data offsets */
+#define AQ_OFFS_LANG			0x20c
+#define AQ_OFFS_FW				0x1f9
+#define AQ_OFFS_NAME			0x079
+#define AQ_OFFS_OS				0x200
+#define AQ_OFFS_FLASHC			0x204
+#define AQ_OFFS_SERIAL			0x208
+#define AQ_OFFS_PROD_M			0x20a
+#define AQ_OFFS_PROD_Y			0x20b
+#define AQ_OFFS_PROFILE			0x082
+#define AQ_OFFS_FAN_NAME		0x000
+#define AQ_OFFS_FAN_RPM			0x1ba
+#define AQ_OFFS_FAN_PWR			0x0c6
+#define AQ_OFFS_TEMP_NAME  		0x037
+#define AQ_OFFS_TEMP_VAL		0x1cc
+#define AQ_OFFS_FLOW_NAME		0x02c
+#define AQ_OFFS_FLOW_VAL		0x1c2
+#define AQ_OFFS_TIME_H			0x171
+#define AQ_OFFS_TIME_M			0x172
+#define AQ_OFFS_TIME_S			0x173
+#define AQ_OFFS_TIME_D			0x174
+
+/* device type length */
+#define AQ_LEN_INT				2
+#define AQ_LEN_BYTE				1
+
+/* string lengths */
+#define AQ_LEN_FW				5
+#define	AQ_LEN_NAME				9
+#define AQ_LEN_LANG				4
+#define AQ_LEN_FAN_NAME			10
+#define AQ_LEN_TEMP_NAME		10
+#define AQ_LEN_FLOW_NAME		10
+
+/* pseudo-values */
 #define AQ_TEMP_NCONN			0x7d0
-#define AQ_FLOW_NAME_LEN		10
-#define AQ_FLOW_NAME_OFFS		0x02c
-#define AQ_FLOW_VAL_OFFS		0x1c2
 #define AQ_FLOW_NCONN			0x0c8
 
+/* sensor / fan count */
+#define AQ_NUM_PROFILE			2
+#define AQ_NUM_FAN				4
+#define AQ_NUM_TEMP				6
+
 /* own types */
-typedef unsigned char uchar;
+typedef uint8_t					aq_byte;
+typedef uint16_t 				aq_int;
 
 /* aquaero(R) device data structures */
-
-//enum fan_mode = { MANUAL_RPM, MANUAL_DUTY, ... };
-
 typedef struct {
 	char		*name;
-	char		duty;
-	ushort		rpm;
-//	ushort		set_rpm;
-//	ushort		set_duty;
-//	fan_mode	mode;
-//	ushort		max_rpm;
-//	ushort		pulse;
-//	uchar		min_power;
-//	struct 		aq_temp *sensors[2];
+	aq_byte		duty;
+	aq_int		rpm;
 } aq_fan;
 
 typedef struct {
 	char		*name;
 	double		value;
-//	uchar		factor;
-//	uchar		offset;
-//	ushort		alarm;
-//	ushort		min;
-//	ushort		max;
-//	uchar		hyst;
-//	ushort		opt;
 	char		connected;
-//	char		is_flow;
 } aq_temp;
 
 typedef struct {
 	char		*name;
 	double		value;
-//	double		alarm[2];
-//	uchar		pulse;
-//	flow_mode	mode;
 	char		connected;
 } aq_flow;
 
 typedef struct {
 	char		*name;
 	char		*fw_name;
-	ushort 		os_version;
-	uchar 		prod_year;
-	uchar 		prod_month;
-	ushort 		serial;
-	ushort 		flash_count;
+	char		*language;
+	aq_byte		profile;
+	aq_byte		prod_year;
+	aq_byte		prod_month;
+	aq_byte		time_h;
+	aq_byte		time_m;
+	aq_byte		time_s;
+	aq_byte		time_d;
+	aq_int 		os_version;
+	aq_int 		serial;
+	aq_int 		flash_count;
 } aq_device;
 
 typedef struct {
 	aq_device	device;
-	aq_fan		fans[AQ_FAN_NUM];
-	aq_temp		temps[AQ_TEMP_NUM];
+	aq_fan		fans[AQ_NUM_FAN];
+	aq_temp		temps[AQ_NUM_TEMP];
 	aq_flow		flow;
 } aquaero_data;
 
@@ -145,12 +158,12 @@ typedef struct {
 
 /* device communication */
 libusb_device 	*aq_dev_find();
-int				aq_dev_init(char **err);
-int				aq_dev_poll(char **err);
+int		aq_dev_init(char **err);
+int		aq_dev_poll(char **err);
+int 	aq_dev_push(aq_byte req_type, char **err);
 
 /* helper functions */
-ushort	aq_get_ushort(uchar *ptr);
-char	*aq_trim_str(uchar *start, int max_length);
+aq_int 	aq_get_int(int offset);
 char 	*aq_libusb_strerr(int err);
 char 	*aq_strcat(char *str1, char *str2);
 
@@ -160,10 +173,11 @@ void 	aq_get_fan(aq_fan *fan, short num);
 void	aq_get_temp(aq_temp *temp, short num);
 void	aq_get_flow(aq_flow *flow);
 
-/* all-in-one query functions */
+/* functions designated for use from application side */
 int		aquaero_init(char **err_msg);
 int		aquaero_poll_data(aquaero_data *aq_data, char **err_msg);
-uchar	*aquaero_get_buffer();
+int		aquaero_load_profile(aq_byte profile, char **err_msg);
 void	aquaero_exit();
+unsigned char *aquaero_get_buffer();
 
 #endif /* DEVICE_H_ */

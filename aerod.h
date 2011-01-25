@@ -1,4 +1,4 @@
-/* Copyright lynix <lynix47@gmail.com>, 2010
+/* Copyright 2010-2011 lynix <lynix47@gmail.com>
  *
  * This file is part of aerocli.
  *

@@ -1,4 +1,4 @@
-/* Copyright lynix <lynix47@gmail.com>, 2010
+/* Copyright 2010-2011 lynix <lynix47@gmail.com>
  *
  * This file is part of aerotools.
  *
@@ -185,14 +185,14 @@ char *poll_aquaero(char **err_msg)
 	position = aquaero_data_str;
 
 	/* fans */
-	for (i=0; i<AQ_FAN_NUM; i++) {
+	for (i=0; i<AQ_NUM_FAN; i++) {
 		/* TODO: OK to use other units that F/C in hddtemp? */
 		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data.fans[i].name,
 				aq_data.fans[i].rpm);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 	/* temperature sensors */
-	for (i=0; i<AQ_TEMP_NUM; i++) {
+	for (i=0; i<AQ_NUM_TEMP; i++) {
 		if (!aq_data.temps[i].connected)
 			continue;
 		sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
