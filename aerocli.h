@@ -22,35 +22,27 @@
 /* includes */
 #include "libaquaero.h"
 #include <stdio.h>
-#include <sys/stat.h>		/* open() */
-#include <fcntl.h>			/* open() */
 #include <string.h>			/* strerror() */
 #include <errno.h>			/* int errno */
 #include <stdarg.h>			/* err_msg(), err_die() */
 #include <stdlib.h>			/* exit() */
-#include <unistd.h>			/* write(), close() */
+#include <time.h>
 
 /* program name */
 #define PROGN				"aerocli"
 
-/* cmdline options structure */
-struct options {
-	short	all;
-	short	fan_rpm;
-	short	fan_duty;
-	short	temp;
-	short	dump;
-	short	profile;
-	char	*dump_fn;
-};
-
 /* functions */
 void print_help();
+void print_all(aquaero_data *data);
+void print_summary(aquaero_data *data);
+void print_device(aquaero_data *data);
+void print_flow(aquaero_data *data);
+void print_temps(aquaero_data *data, char verbose);
+void print_fans(aquaero_data *data);
 void err_die(char *msg, ...);
 void err_msg(char *msg, ...);
-void init_opts(struct options *opts);
-void print_heading(char *text);
-void parse_cmdline(struct options *opts, int argc, char *argv[]);
-void dump_data(char *file, char *buffer, int buffsize);
+char *strday(aq_byte day);
+int  dump_data(char *file, unsigned char *buffer);
+int  sync_time(char **err);
 
 #endif /* AEROCLI_H_ */

@@ -222,7 +222,7 @@ int aq_dev_poll(char **err)
 	return 0;
 }
 
-int aq_dev_push(aq_byte req_type, char **err)
+int aq_dev_push(aq_request req_type, char **err)
 {
 	int				i, n;
 	unsigned char	*buffer;
@@ -232,7 +232,7 @@ int aq_dev_push(aq_byte req_type, char **err)
 		*err = "out of memory";
 		return -1;
 	}
-	buffer[0] = req_type;
+	buffer[0] = (aq_byte)req_type;
 	memcpy(buffer + 1, aq_data_buffer, AQ_USB_WRITE_LEN - 1);
 
 	if ((i = libusb_open(aq_usb_dev, &handle)) != 0) {
@@ -352,6 +352,27 @@ int aquaero_load_profile(aq_byte profile, char **err_msg)
 
 	/* write out to device */
 	if (aq_dev_push(AQ_REQ_PROFILE, err_msg) < 0)
+		return -1;
+
+	return 0;
+}
+
+int aquaero_set_time(aq_byte h, aq_byte m, aq_byte s, aq_byte d, char **err_msg)
+{
+	if (aq_data_buffer == NULL) {
+		*err_msg = "device must be queried first";
+		return -1;
+	}
+
+	if (aq_dev_poll(err_msg) < 0)
+		return -1;
+
+	aq_data_buffer[AQ_OFFS_TIME_H] = h;
+	aq_data_buffer[AQ_OFFS_TIME_M] = m;
+	aq_data_buffer[AQ_OFFS_TIME_S] = s;
+	aq_data_buffer[AQ_OFFS_TIME_D] = d;
+
+	if (aq_dev_push(AQ_REQ_RAM, err_msg) < 0)
 		return -1;
 
 	return 0;

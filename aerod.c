@@ -216,12 +216,10 @@ char *poll_hddtemp(char *host, unsigned short port)
 	int		client_sock, bytes_read;
 	struct 	sockaddr_in server_addr;
 
-	/* TODO: overflow prevention here... */
-	if ((hddtemp_buffer = malloc(MAX_LINE)) == NULL) {
+	if ((hddtemp_buffer = calloc(MAX_LINE, 1)) == NULL)
 		return NULL;
-	}
-	bzero(hddtemp_buffer, MAX_LINE);
 
+	/* tcp connection to hddtempd */
 	bzero((char *) &server_addr, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr(host);
@@ -236,6 +234,7 @@ char *poll_hddtemp(char *host, unsigned short port)
 		return NULL;
 	}
 
+	/* receive all available data */
 	bytes_read = recv(client_sock, hddtemp_buffer, MAX_LINE, MSG_WAITALL);
 	shutdown(client_sock, SHUT_RD);
 	close(client_sock);

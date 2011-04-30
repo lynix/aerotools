@@ -44,11 +44,13 @@
 
 
 /* write request types */
-#define AQ_REQ_DEFAULT			101
-#define AQ_REQ_EEPROM			102
-#define AQ_REQ_RAM				103
-#define AQ_REQ_PROFILE			107
-#define AQ_REQ_COPY				108
+typedef enum {
+/*	AQ_REQ_DEFAULT	= 101,
+	AQ_REQ_EEPROM	= 102,
+	*/AQ_REQ_RAM		= 103,/*
+	AQ_REQ_COPY		= 108,*/
+	AQ_REQ_PROFILE	= 107
+} aq_request;
 
 /* data offsets */
 #define AQ_OFFS_LANG			0x20c
@@ -160,7 +162,7 @@ typedef struct {
 libusb_device 	*aq_dev_find();
 int		aq_dev_init(char **err);
 int		aq_dev_poll(char **err);
-int 	aq_dev_push(aq_byte req_type, char **err);
+int 	aq_dev_push(aq_request req_type, char **err);
 
 /* helper functions */
 aq_int 	aq_get_int(int offset);
@@ -177,6 +179,8 @@ void	aq_get_flow(aq_flow *flow);
 int		aquaero_init(char **err_msg);
 int		aquaero_poll_data(aquaero_data *aq_data, char **err_msg);
 int		aquaero_load_profile(aq_byte profile, char **err_msg);
+int		aquaero_set_time(aq_byte h, aq_byte m, aq_byte s, aq_byte d,
+			char **err_msg);
 void	aquaero_exit();
 unsigned char *aquaero_get_buffer();
 
