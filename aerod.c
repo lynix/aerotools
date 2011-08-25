@@ -40,6 +40,14 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	/* sync device clock if requested */
+	if (opts.sync_clock) {
+		if (sync_time(&err_msg) != 0) {
+			log_msg(LOG_ERR, err_msg);
+			exit(EXIT_FAILURE);
+		}
+	}
+
     /* daemonize */
     if (opts.fork) {
     	pid = fork();
@@ -184,13 +192,19 @@ char *poll_aquaero(char **err_msg)
 		return NULL;
 	position = aquaero_data_str;
 
-	/* fans */
+	/* fan rpm */
 	for (i=0; i<AQ_NUM_FAN; i++) {
 		/* TODO: OK to use other units that F/C in hddtemp? */
 		sprintf(position, "|/dev/fan%d|%s|%d|C|", i+1, aq_data.fans[i].name,
 				aq_data.fans[i].rpm);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
+	/* fan percentage */
+	for (i=0; i<AQ_NUM_FAN; i++) {
+			sprintf(position, "|/dev/fan%dp|%s|%d|C|", i+1, aq_data.fans[i].name,
+					aq_data.fans[i].duty);
+			position = aquaero_data_str + strlen(aquaero_data_str);
+		}
 	/* temperature sensors */
 	for (i=0; i<AQ_NUM_TEMP; i++) {
 		if (!aq_data.temps[i].connected)
@@ -248,6 +262,17 @@ char *poll_hddtemp(char *host, unsigned short port)
 	}
 
 	return hddtemp_buffer;
+}
+
+int sync_time(char **err) {
+	struct tm *ts;
+	time_t now;
+
+	now = time(0);
+	ts = localtime(&now);
+
+	return aquaero_set_time(ts->tm_hour, ts->tm_min, ts->tm_sec, ts->tm_wday,
+			err);
 }
 
 int write_pidfile(int pid)
@@ -308,9 +333,11 @@ void parse_cmdline(int argc, char *argv[])
 	opts.fork = 1;
 	opts.hddtemp = 0;
 	opts.pidfile = 0;
+	opts.sync_clock = 0;
+	opts.hddtemp_port = HDDTEMP_PORT;
 
 	/* parse cmdline */
-	while ((c = getopt(argc, argv, "hFftp:i:")) != -1) {
+	while ((c = getopt(argc, argv, "hFftsp:i:T:")) != -1) {
 		switch (c) {
 			case 'h':
 				print_help();
@@ -325,6 +352,14 @@ void parse_cmdline(int argc, char *argv[])
 			case 't':
 				opts.hddtemp = 1;
 				break;
+			case 'T':
+				n = atoi(optarg);
+				if (n < 1 || n > 65535) {
+					log_msg(LOG_ERR, "invalid hddtemp port: %d", n);
+					exit(EXIT_FAILURE);
+				}
+				opts.hddtemp_port = n;
+				break;	
 			case 'p':
 				n = atoi(optarg);
 				if (n < 1 || n > 65535) {
@@ -332,6 +367,9 @@ void parse_cmdline(int argc, char *argv[])
 					exit(EXIT_FAILURE);
 				}
 				opts.port = n;
+				break;
+			case 's':
+				opts.sync_clock = 1;
 				break;
 			case 'i':
 				n = atoi(optarg);
@@ -401,12 +439,14 @@ void print_help()
 	printf("Usage:  %s [OPTIONS]\n\n", PROGN);
 
 	printf("Options:\n");
-	printf("  -p   port to listen on (default %d)\n", PORT);
-	printf("  -i   interval for polling in seconds (default: %d)\n", INTERVAL);
-	printf("  -F   don't daemonize, stay in foreground\n");
-	printf("  -f   write PID file (/var/run/%s.pid)", PROGN);
-	printf("  -t   query hddtemp and include data\n");
-	printf("  -h   display this usage and license information\n");
+	printf("  -p PORT  port to listen on (default %d)\n", PORT);
+	printf("  -i INT   interval for polling in seconds (default: %d)\n", INTERVAL);
+	printf("  -F       don't daemonize, stay in foreground\n");
+	printf("  -f FILE  write PID file (/var/run/%s.pid)\n", PROGN);
+	printf("  -t       query hddtemp and include data\n");
+	printf("  -T PORT  hddtemp port to query (default 7634)\n");
+	printf("  -s       sync device clock with system time\n");
+	printf("  -h       display this usage and license information\n");
 
 	printf("\n");
 	printf("This version of %s was built on %s %s.\n", PROGN, __DATE__,

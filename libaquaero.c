@@ -171,7 +171,8 @@ int aq_dev_init(char **err)
 	/* soft-reset device, set configuration */
 	for (n=0; n<AQ_USB_RETRIES; n++) {
 		i = libusb_set_configuration(handle, AQ_USB_CONF);
-		if (i != LIBUSB_ERROR_BUSY)
+		/* TODO: dirty fix for OTHER_ERROR occuring once a week or so */
+		if (i != LIBUSB_ERROR_BUSY && i != LIBUSB_ERROR_OTHER)
 			break;
 		sleep(AQ_USB_RETRY_DELAY);
 	}
