@@ -44,5 +44,6 @@ void err_msg(char *msg, ...);
 char *strday(aq_byte day);
 int  dump_data(char *file, unsigned char *buffer);
 int  sync_time(char **err);
+int  set_fan_duty(char num, aq_byte duty, char **err_msg);
 
 #endif /* AEROCLI_H_ */

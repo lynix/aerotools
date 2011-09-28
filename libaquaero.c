@@ -95,8 +95,8 @@ void aq_get_fan(aq_fan *fan, short num)
 {
 	fan->name = strdup((char *)aq_data_buffer + AQ_OFFS_FAN_NAME +
 			(num * (AQ_LEN_FAN_NAME + 1)));
-	fan->duty = (((unsigned char)*(aq_data_buffer + AQ_OFFS_FAN_PWR +
-			(num * AQ_LEN_BYTE))) * 100) >> 8;	/* TODO: simplify */
+	fan->duty = aq_data_buffer[AQ_OFFS_FAN_PWR + (num * AQ_LEN_BYTE)]
+	             * 100 / 0xff;
 	fan->rpm = aq_get_int(AQ_OFFS_FAN_RPM +	(num * AQ_LEN_INT));
 }
 
@@ -360,8 +360,8 @@ int aquaero_load_profile(aq_byte profile, char **err_msg)
 
 int aquaero_set_time(aq_byte h, aq_byte m, aq_byte s, aq_byte d, char **err_msg)
 {
-	if (aq_data_buffer == NULL) {
-		*err_msg = "device must be queried first";
+	if (aq_data_buffer == NULL || aq_usb_dev == NULL) {
+		*err_msg = "uninitialized, call aquaero_init() first";
 		return -1;
 	}
 
@@ -377,6 +377,26 @@ int aquaero_set_time(aq_byte h, aq_byte m, aq_byte s, aq_byte d, char **err_msg)
 		return -1;
 
 	return 0;
+}
+
+int aquaero_set_fan_duty(char fan_no, aq_byte duty, char **err_msg)
+{
+	if (aq_data_buffer == NULL || aq_usb_dev == NULL) {
+		*err_msg = "uninitialized, call aquaero_init() first";
+		return -1;
+	}
+
+	if (aq_dev_poll(err_msg) < 0)
+		return -1;
+
+	/* TODO: set fan mode to manual here */
+	aq_data_buffer[AQ_OFFS_FAN_PWR + (fan_no * AQ_LEN_BYTE)] = duty * 0xff
+			/ 100;
+
+	if (aq_dev_push(AQ_REQ_RAM, err_msg) < 0)
+			return -1;
+
+		return 0;
 }
 
 void aquaero_exit()

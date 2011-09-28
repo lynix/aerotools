@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <linux/types.h>
 
 /* usb communication related constants */
 #define AQ_USB_VID 				0x0c70
@@ -33,8 +34,8 @@
 #define AQ_USB_ENDP_IN			0x081
 #define AQ_USB_ENDP_OUT			0x001
 #define AQ_USB_TIMEOUT			1000
-#define AQ_USB_RETRIES			3
-#define AQ_USB_RETRY_DELAY		200
+#define AQ_USB_RETRIES			10
+#define AQ_USB_RETRY_DELAY		1
 #define AQ_USB_READ_LEN			552
 #define AQ_USB_WRITE_LEN		376
 #define AQ_USB_WRITE_REQT		0x21
@@ -181,6 +182,7 @@ int		aquaero_poll_data(aquaero_data *aq_data, char **err_msg);
 int		aquaero_load_profile(aq_byte profile, char **err_msg);
 int		aquaero_set_time(aq_byte h, aq_byte m, aq_byte s, aq_byte d,
 			char **err_msg);
+int 	aquaero_set_fan_duty(char fan_no, aq_byte duty, char **err_msg);
 void	aquaero_exit();
 unsigned char *aquaero_get_buffer();
 

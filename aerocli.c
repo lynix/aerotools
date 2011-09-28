@@ -57,6 +57,8 @@ int main(int argc, char *argv[])
 				r = sync_time(&err);
 			else if (strcmp(argv[i], "-p") == 0)
 				r = aquaero_load_profile(atoi(argv[i+1]), &err);
+			else if (strncmp(argv[i], "-F", 2) == 0)
+				r = set_fan_duty(atoi(argv[i] + 2), atoi(argv[i+1]), &err);
 			else
 				err_die("unknown parameter: %s", argv[i]);
 		}
@@ -190,12 +192,13 @@ void print_help()
 	printf("and flow data.\n\n");
 
 	printf("Reading Options:\n");
-	printf("  -a         print all data read from the device\n");
-	printf("  -t         print temperature readings only\n");
-	printf("  -f         print fan readings only\n");
+	printf("  -a    print all data read from the device\n");
+	printf("  -t    print temperature readings only\n");
+	printf("  -f    print fan readings only\n");
 
 	printf("Writing Options:\n");
 	printf("  -p  N      load profile N (1-2)\n");
+	printf("  -FX Y      set fan X (1-4) to Y%% power\n");
 	printf("  -T         synchronize time\n\n");
 
 	printf("  -d  FILE   dump raw device buffer to FILE\n");
@@ -233,4 +236,20 @@ int sync_time(char **err) {
 
 	return aquaero_set_time(ts->tm_hour, ts->tm_min, ts->tm_sec, ts->tm_wday,
 			err);
+}
+
+int set_fan_duty(char num, aq_byte duty, char **err_msg)
+{
+	printf("debug: setting fan %d to %d%%\n", num, duty);
+	if (duty < 0 || duty > 100) {
+		*err_msg = "invalid duty value, must be in [0,100]";
+		return EXIT_FAILURE;
+	}
+
+	if (num < 1 || num > 4) {
+		*err_msg = "invalid fan number, must be in [1,4]";
+		return EXIT_FAILURE;
+	}
+
+	return  aquaero_set_fan_duty(num-1, duty, err_msg);
 }

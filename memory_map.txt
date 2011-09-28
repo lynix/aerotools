@@ -43,7 +43,7 @@ offset	count	description					type		size (bytes)	used
 		1		tubemeter expansion			byte		1
 		4		fan sensor					byte		1
 		4		fan target rpm				int			2
-		4		fan target power			int			2
+0x0c6	4		fan target power			byte		1
 		4		fan mode					int			2
 		1		flow mode					int			2
 		1		flow alarm1					int			2
