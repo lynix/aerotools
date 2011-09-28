@@ -1,15 +1,20 @@
 CC = gcc
-CFLAGS = -O2 -Wall -pedantic -std=gnu99 -I /usr/include -g
+CFLAGS = -Wall -pedantic -I /usr/include -O2
 PREFIX ?= /usr
 INSTALLDIR = $(DESTDIR)$(PREFIX)
 
 all : aerocli aerod
+
+debug : CFLAGS += -g
+debug : all
+
 
 aerocli : aerocli.o libaquaero.o
 	$(CC) $(CFLAGS) -o $@ $^ -lusb-1.0 $(LDFLAGS)
 	
 aerod : aerod.o libaquaero.o
 	$(CC) $(CFLAGS) -o $@ $^ -lusb-1.0 -lpthread $(LDFLAGS) 
+
 
 aerocli.o : aerocli.c aerocli.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
@@ -19,6 +24,7 @@ aerod.o : aerod.c aerod.h
 
 libaquaero.o : libaquaero.c libaquaero.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
+
 
 install: aerocli aerod
 	mkdir -p $(INSTALLDIR)/bin
