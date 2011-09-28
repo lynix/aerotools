@@ -137,7 +137,8 @@ void *tcp_handler()
 
 	while ((connection_sock = accept(server_sock, NULL, NULL)) >= 0) {
 		pthread_mutex_lock(&data_lock);
-		send(connection_sock, data_str, strlen(data_str)+1, 0);
+		if (data_str != NULL)
+			send(connection_sock, data_str, strlen(data_str)+1, 0);
 		pthread_mutex_unlock(&data_lock);
 		close(connection_sock);
 	}
