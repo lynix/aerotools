@@ -2,7 +2,7 @@
 #
 # Plugin to read values from aerod (part of aerotools)
 #
-# 2010 by lynix <lynix47@gmail.com>
+# 2010-2012 by lynix <lynix47@gmail.com>
 #
 #
 # Magic markers - optional - used by installation scripts and
@@ -13,14 +13,18 @@
 
 PORT=7635
 
-MODE="$(echo "$0" | cut -d '_' -f 2)"
-DATA="$(curl -s http://localhost:$PORT)"
 
 if [ "$1" == "autoconf" ]; then
+	if ! which nc &>/dev/null; then
+		echo "no"
+		exit 1
+	fi
 	echo "yes"
 	exit 0
 fi
 
+
+DATA="$(nc localhost $PORT)"
 if [ -z "$DATA" ]; then
 	echo "unable to read from aerod"
 	exit 1
@@ -63,6 +67,8 @@ function get_value() {
 	fi
 }
 
+
+MODE="$(echo "$0" | cut -d '_' -f 2)"
 
 case "$MODE" in
 	temp)
