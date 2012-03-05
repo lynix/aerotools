@@ -1,4 +1,4 @@
-/* Copyright 2010-2011 lynix <lynix47@gmail.com>
+/* Copyright 2010-2012 lynix <lynix47@gmail.com>
  *
  * This file is part of aerocli.
  *
@@ -58,6 +58,7 @@ struct options {
 	unsigned int	hddtemp:1;
 	unsigned int	pidfile:1;
 	unsigned int	sync_clock:1;
+	unsigned int	precision:1;
 };
 
 /* functions */

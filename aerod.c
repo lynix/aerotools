@@ -1,4 +1,4 @@
-/* Copyright 2010-2011 lynix <lynix47@gmail.com>
+/* Copyright 2010-2012 lynix <lynix47@gmail.com>
  *
  * This file is part of aerotools.
  *
@@ -151,8 +151,10 @@ int poll_data()
 	/* TODO: oh my, heavy refactoring needed here */
 	char *poll_str, *hddtemp_data, *err_msg;
 
-	if ((poll_str = poll_aquaero(&err_msg)) == NULL)
+	if ((poll_str = poll_aquaero(&err_msg)) == NULL) {
 		log_msg(LOG_ERR, "error reading from aquaero(R): %s", err_msg);
+		return -1;
+	}
 
 	if (opts.hddtemp) {
 		if ((hddtemp_data = poll_hddtemp(HDDTEMP_HOST, HDDTEMP_PORT)) == NULL)
@@ -210,15 +212,25 @@ char *poll_aquaero(char **err_msg)
 	for (i=0; i<AQ_NUM_TEMP; i++) {
 		if (!aq_data.temps[i].connected)
 			continue;
-		sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
+		/* TODO: extract format strings to global DEFs */
+		if (opts.precision)
+			sprintf(position, "|/dev/temp%d|%s|%.1f|C|", i+1,
 				aq_data.temps[i].name,	aq_data.temps[i].value);
+		else
+			sprintf(position, "|/dev/temp%d|%s|%.0f|C|", i+1,
+							aq_data.temps[i].name,	aq_data.temps[i].value);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 	/* flow sensor */
 	if (aq_data.flow.connected) {
 		/* TODO: OK to use other units that F/C in hddtemp? */
-		sprintf(position, "|/dev/flow|%s|%.0f|C|", aq_data.flow.name,
+		/* TODO: extract format strings to global DEFs */
+		if (opts.precision)
+			sprintf(position, "|/dev/flow|%s|%.1f|C|", aq_data.flow.name,
 				aq_data.flow.value);
+		else
+			sprintf(position, "|/dev/flow|%s|%.0f|C|", aq_data.flow.name,
+							aq_data.flow.value);
 		position = aquaero_data_str + strlen(aquaero_data_str);
 	}
 
@@ -336,9 +348,10 @@ void parse_cmdline(int argc, char *argv[])
 	opts.pidfile = 0;
 	opts.sync_clock = 0;
 	opts.hddtemp_port = HDDTEMP_PORT;
+	opts.precision = 0;
 
 	/* parse cmdline */
-	while ((c = getopt(argc, argv, "hFftsp:i:T:")) != -1) {
+	while ((c = getopt(argc, argv, "hFftsPp:i:T:")) != -1) {
 		switch (c) {
 			case 'h':
 				print_help();
@@ -368,6 +381,9 @@ void parse_cmdline(int argc, char *argv[])
 					exit(EXIT_FAILURE);
 				}
 				opts.port = n;
+				break;
+			case 'P':
+				opts.precision = 1;
 				break;
 			case 's':
 				opts.sync_clock = 1;
@@ -442,6 +458,7 @@ void print_help()
 	printf("Options:\n");
 	printf("  -p PORT  port to listen on (default %d)\n", PORT);
 	printf("  -i INT   interval for polling in seconds (default: %d)\n", INTERVAL);
+	printf("  -P       extended precision, may violate hddtemp protocol\n");
 	printf("  -F       don't daemonize, stay in foreground\n");
 	printf("  -f FILE  write PID file (/var/run/%s.pid)\n", PROGN);
 	printf("  -t       query hddtemp and include data\n");

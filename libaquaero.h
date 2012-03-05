@@ -1,4 +1,4 @@
-/* Copyright 2010-2011 lynix <lynix47@gmail.com>
+/* Copyright 2010-2012 lynix <lynix47@gmail.com>
  *
  * This file is part of aerotools.
  *

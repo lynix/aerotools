@@ -1,5 +1,5 @@
 
- overview of the readable 552 byte		1 memory on the device
+ overview of the readable 552 byte memory on the device
  ------------------------------------------------------
  
  (extracted from the official aquasuite sdk 20081004)

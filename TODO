@@ -1,5 +1,5 @@
 
- - refactor makefile (no debug-symbols in standard build)
+ - fix makefile: debug target
 
  - [aerod]		question use of real units (e.g. rpm, l/min) in hddtemp
 				protocol
