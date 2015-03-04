@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -pedantic -I /usr/include -O2
+CFLAGS = -O2 -Wall -pedantic -std=gnu99 -I /usr/include -g
 PREFIX ?= /usr
 INSTALLDIR = $(DESTDIR)$(PREFIX)
 
