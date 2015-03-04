@@ -1,41 +1,34 @@
-CC = gcc
-CFLAGS = -Wall -ansi -std=gnu99 -pedantic -I /usr/include -O2
-PREFIX ?= /usr
+CC         = gcc
+CFLAGS     = -Wall -ansi -std=gnu99 -pedantic -I /usr/include -O2
+PREFIX    ?= /usr
 INSTALLDIR = $(DESTDIR)$(PREFIX)
+BINARIES   = bin/aerocli bin/aerod
 
 ifdef DEBUG  
 	CFLAGS += -g
 endif
 
-all : aerocli aerod
 
-aerocli : aerocli.o libaquaero.o
-	$(CC) $(CFLAGS) -o $@ $^ -lusb-1.0 $(LDFLAGS)
+all : $(BINARIES)
+
+
+$(BINARIES) : bin/%: obj/%.o obj/libaquaero.o
+	$(CC) $(CFLAGS) -o $@ $^ -pthread -lusb-1.0 $(LDFLAGS)
 	
-aerod : aerod.o libaquaero.o
-	$(CC) $(CFLAGS) -o $@ $^ -lusb-1.0 -lpthread $(LDFLAGS) 
-
-
-aerocli.o : aerocli.c aerocli.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
+obj/%.o : src/%.c src/%.h
+	$(CC) $(CFLAGS) -o $@ -c $<
 	
-aerod.o : aerod.c aerod.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
 
-libaquaero.o : libaquaero.c libaquaero.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
-
-
-install: aerocli aerod
+install: $(BINARIES)
 	mkdir -p $(INSTALLDIR)/bin
-	install -m 755 aerocli $(INSTALLDIR)/bin/aerocli
-	install -m 755 aerod $(INSTALLDIR)/bin/aerod
+	install -m 755 bin/aerocli $(INSTALLDIR)/bin/aerocli
+	install -m 755 bin/aerod $(INSTALLDIR)/bin/aerod
 
 uninstall:
 	rm -f $(INSTALLDIR)/bin/aerocli
 	rm -f $(INSTALLDIR)/bin/aerod
 
 clean :
-	rm -f aerocli aerod *.o
+	rm -f $(BINARIES) obj/*.o
 
-.PHONY: clean install
+.PHONY: clean install uninstall
