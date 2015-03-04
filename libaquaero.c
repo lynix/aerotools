@@ -18,6 +18,114 @@
 
 #include "libaquaero.h"
 
+/* libs */
+#include <libusb-1.0/libusb.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <linux/types.h>
+
+/* macros */
+#define AQ_GET_INT(offset) ((*(aq_data_buffer + (offset)) << 8) + \
+			*(aq_data_buffer + (offset) + 1))
+
+/* usb communication related constants */
+#define AQ_USB_VID 				0x0c70
+#define AQ_USB_PID 				0xf0b0
+#define AQ_USB_CONF				1
+#define AQ_USB_ENDP_IN			0x081
+#define AQ_USB_ENDP_OUT			0x001
+#define AQ_USB_TIMEOUT			1000
+#define AQ_USB_RETRIES			10
+#define AQ_USB_RETRY_DELAY		1
+#define AQ_USB_WRITE_LEN		376
+#define AQ_USB_WRITE_REQT		0x21
+#define AQ_USB_WRITE_REQ		0x09
+#define AQ_USB_WRITR_WVAL		0x200
+#define AQ_USB_WRITR_INDEX		0
+
+/* write request types */
+typedef enum {
+//	AQ_REQ_DEFAULT	= 101,
+//	AQ_REQ_EEPROM	= 102,
+	AQ_REQ_RAM		= 103,
+//	AQ_REQ_COPY		= 108,
+	AQ_REQ_PROFILE	= 107
+} aq_request;
+
+/* data offsets */
+#define AQ_OFFS_LANG				0x20c
+#define AQ_OFFS_FW				0x1f9
+#define AQ_OFFS_NAME				0x079
+#define AQ_OFFS_OS				0x200
+#define AQ_OFFS_FLASHC			0x204
+#define AQ_OFFS_SERIAL			0x208
+#define AQ_OFFS_PROD_M			0x20a
+#define AQ_OFFS_PROD_Y			0x20b
+#define AQ_OFFS_PROFILE			0x082
+#define AQ_OFFS_FAN_NAME			0x000
+#define AQ_OFFS_FAN_RPM			0x1ba
+#define AQ_OFFS_FAN_PWR			0x0c6
+#define AQ_OFFS_TEMP_NAME  		0x037
+#define AQ_OFFS_TEMP_VAL			0x1cc
+#define AQ_OFFS_FLOW_NAME		0x02c
+#define AQ_OFFS_FLOW_VAL			0x1c2
+#define AQ_OFFS_TIME_H			0x171
+#define AQ_OFFS_TIME_M			0x172
+#define AQ_OFFS_TIME_S			0x173
+#define AQ_OFFS_TIME_D			0x174
+
+/* device type length */
+#define AQ_LEN_INT				2
+#define AQ_LEN_BYTE				1
+
+/* string lengths */
+#define AQ_LEN_FW				5
+#define	AQ_LEN_NAME				9
+#define AQ_LEN_LANG				4
+#define AQ_LEN_FAN_NAME			10
+#define AQ_LEN_TEMP_NAME			10
+#define AQ_LEN_FLOW_NAME			10
+
+/* pseudo-values */
+#define AQ_TEMP_NCONN			0x7d0
+#define AQ_FLOW_NCONN			0x0c8
+
+
+/* error messages */
+#define LIBUSB_STR_SUCCESS				"success";
+#define LIBUSB_STR_ERR_IO				"I/O error";
+#define LIBUSB_STR_ERR_INVALID_PARAM		"invalid parameter";
+#define LIBUSB_STR_ERR_ACCESS			"access denied";
+#define LIBUSB_STR_ERR_NO_DEVICE			"no such device";
+#define LIBUSB_STR_ERR_NOT_FOUND			"entity not found";
+#define LIBUSB_STR_ERR_BUSY				"resource busy";
+#define LIBUSB_STR_ERR_TIMEOUT			"operation timed out";
+#define LIBUSB_STR_ERR_OVERFLOW			"overflow";
+#define LIBUSB_STR_ERR_PIPE				"pipe error";
+#define LIBUSB_STR_ERR_INTERRUPTED		"syscall interrupted";
+#define LIBUSB_STR_ERR_NO_MEM			"insufficient memory";
+#define LIBUSB_STR_ERR_NOT_SUPPORTED		"operation not supported";
+#define LIBUSB_STR_ERR_OTHER				"other error";
+#define LIBUSB_STR_ERR_UNKNOWN			"unknown error";
+
+/* device communication */
+libusb_device 	*aq_dev_find();
+int		aq_dev_init(char **err);
+int		aq_dev_poll(char **err);
+int 	aq_dev_push(aq_request req_type, char **err);
+
+/* helper functions */
+char 	*aq_libusb_strerr(int err);
+char 	*aq_strcat(char *str1, char *str2);
+
+/* data extraction, conversion */
+void 	aq_get_device(aq_device *device);
+void 	aq_get_fan(aq_fan *fan, short num);
+void	aq_get_temp(aq_temp *temp, short num);
+void	aq_get_flow(aq_flow *flow);
+
 
 /*
  *	globals
@@ -30,11 +138,6 @@ unsigned char	*aq_data_buffer = NULL;
 /*
  *	helper functions
  */
-
-aq_int aq_get_int(int offset)
-{
-	return (*(aq_data_buffer + offset) << 8) + *(aq_data_buffer + offset + 1);
-}
 
 char *aq_strcat(char *str1, char *str2)
 {
@@ -65,8 +168,9 @@ char *aq_libusb_strerr(int err)
 		case LIBUSB_ERROR_NO_MEM:			return LIBUSB_STR_ERR_NO_MEM;
 		case LIBUSB_ERROR_NOT_SUPPORTED:	return LIBUSB_STR_ERR_NOT_SUPPORTED;
 		case LIBUSB_ERROR_OTHER:			return LIBUSB_STR_ERR_OTHER;
-		default:							return LIBUSB_STR_ERR_UNKNOWN;
 	}
+
+	return LIBUSB_STR_ERR_UNKNOWN;
 }
 
 
@@ -80,9 +184,9 @@ void aq_get_device(aq_device *device)
 	device->fw_name = strdup((char *)aq_data_buffer + AQ_OFFS_FW);
 	device->prod_month = aq_data_buffer[AQ_OFFS_PROD_M];
 	device->prod_year = aq_data_buffer[AQ_OFFS_PROD_Y];
-	device->serial = aq_get_int(AQ_OFFS_SERIAL);
-	device->flash_count = aq_get_int(AQ_OFFS_FLASHC);
-	device->os_version = aq_get_int(AQ_OFFS_OS);
+	device->serial = AQ_GET_INT(AQ_OFFS_SERIAL);
+	device->flash_count = AQ_GET_INT(AQ_OFFS_FLASHC);
+	device->os_version = AQ_GET_INT(AQ_OFFS_OS);
 	device->language = strdup((char *)aq_data_buffer + AQ_OFFS_LANG);
 	device->profile = aq_data_buffer[AQ_OFFS_PROFILE] + 1;
 	device->time_h = aq_data_buffer[AQ_OFFS_TIME_H];
@@ -97,22 +201,22 @@ void aq_get_fan(aq_fan *fan, short num)
 			(num * (AQ_LEN_FAN_NAME + 1)));
 	fan->duty = aq_data_buffer[AQ_OFFS_FAN_PWR + (num * AQ_LEN_BYTE)]
 	             * 100 / 0xff;
-	fan->rpm = aq_get_int(AQ_OFFS_FAN_RPM +	(num * AQ_LEN_INT));
+	fan->rpm = AQ_GET_INT(AQ_OFFS_FAN_RPM +	(num * AQ_LEN_INT));
 }
 
 void aq_get_temp(aq_temp *temp, short num)
 {
 	temp->name = strdup((char *)aq_data_buffer + AQ_OFFS_TEMP_NAME +
 			(num * (AQ_LEN_TEMP_NAME + 1)));
-	temp->value = (double)aq_get_int(AQ_OFFS_TEMP_VAL +
-			(num * AQ_LEN_INT)) / 10.0;
+	temp->value = (double)AQ_GET_INT(AQ_OFFS_TEMP_VAL + (num * AQ_LEN_INT)) /
+					10.0;
 	temp->connected = (temp->value != AQ_TEMP_NCONN);
 }
 
 void aq_get_flow(aq_flow *flow)
 {
 	flow->name = strdup((char *)aq_data_buffer + AQ_OFFS_FLOW_NAME);
-	flow->value = (double)aq_get_int(AQ_OFFS_FLOW_VAL) / 100.0;
+	flow->value = (double)AQ_GET_INT(AQ_OFFS_FLOW_VAL) / 100.0;
 	flow->connected = (flow->value != AQ_FLOW_NCONN);
 }
 
