@@ -1,14 +1,13 @@
 CC = gcc
-CFLAGS = -Wall -pedantic -I /usr/include -O2 -g
+CFLAGS = -Wall -ansi -std=gnu99 -pedantic -I /usr/include -O2
 PREFIX ?= /usr
 INSTALLDIR = $(DESTDIR)$(PREFIX)
 
-debug : CFLAGS += -g
+ifdef DEBUG  
+	CFLAGS += -g
+endif
 
 all : aerocli aerod
-
-debug : CFLAGS += -g
-debug : all
 
 aerocli : aerocli.o libaquaero.o
 	$(CC) $(CFLAGS) -o $@ $^ -lusb-1.0 $(LDFLAGS)
