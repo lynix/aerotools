@@ -21,10 +21,12 @@
 
 /* includes */
 #include "libaquaero.h"
-#include <stdio.h>
+#include <stdlib.h>					/* exit() */
+#include <unistd.h>					/* fork() */
+#include <stdio.h>					/* I/O */
 #include <stdarg.h>					/* variable arguments 	*/
 #include <syslog.h>					/* syslog()				*/
-#include <pthread.h>				/* pthreads				*/
+#include <pthread.h>					/* pthreads				*/
 #include <sys/socket.h>				/* socket definitions 	*/
 #include <sys/types.h>				/* socket types			*/
 #include <arpa/inet.h>				/* inet funtions		*/
