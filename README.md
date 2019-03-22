@@ -1,6 +1,7 @@
 # aerotools: tools for the aquaero(R) 4.0 USB device
 (C) 2010 by lynix <lynix47@gmail.com>
 
+[![Build Status](https://travis-ci.org/lynix/aerotools.svg?branch=master)](https://travis-ci.org/lynix/aerotools)
 
 ## SUMMARY
 
@@ -36,6 +37,15 @@ precise as the aquaero(R) provides them.
 
 aerod can act as proxy for an existing hddtemp instance, so you don't loose your
 hddtemp data when using aerod.
+
+aerod comes with a [Munin](http://munin-monitoring.org) plugin that can be used
+to graph fan speeds, flow rate and temperatures:
+
+![](https://github.com/lynix/aerotools/blob/master/munin-plugin/aerod-fan.png)
+
+![](https://github.com/lynix/aerotools/blob/master/munin-plugin/aerod-flow.png)
+
+![](https://github.com/lynix/aerotools/blob/master/munin-plugin/aerod-temp.png)
 
 
 ## AQUAERO
