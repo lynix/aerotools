@@ -13,9 +13,11 @@ all : $(BINARIES)
 
 
 $(BINARIES) : bin/%: obj/%.o obj/libaquaero.o
+	@mkdir -p bin
 	$(CC) $(CFLAGS) -o $@ $^ -pthread -lusb-1.0 $(LDFLAGS)
 	
 obj/%.o : src/%.c src/%.h
+	@mkdir -p obj
 	$(CC) $(CFLAGS) -o $@ -c $<
 	
 
