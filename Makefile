@@ -22,9 +22,10 @@ obj/%.o : src/%.c src/%.h
 	
 
 install: $(BINARIES)
-	mkdir -p $(INSTALLDIR)/bin
+	mkdir -p $(INSTALLDIR)/bin $(INSTALLDIR)/usr/lib/systemd/system
 	install -m 755 bin/aerocli $(INSTALLDIR)/bin/aerocli
 	install -m 755 bin/aerod $(INSTALLDIR)/bin/aerod
+	install -m 644 systemd/aerod.service $(INSTALLDIR)/usr/lib/systemd/system/aerod.service
 
 uninstall:
 	rm -f $(INSTALLDIR)/bin/aerocli

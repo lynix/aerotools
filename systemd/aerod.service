@@ -1,0 +1,8 @@
+[Unit]
+Description=aerotools daemon
+
+[Service]
+ExecStart=/usr/bin/aerod -F -t
+
+[Install]
+WantedBy=multi-user.target
