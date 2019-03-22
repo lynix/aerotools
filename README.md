@@ -60,23 +60,21 @@ device.
 
 ## DEVELOPMENT
 
-I only own one aquaero(R) 4.0 USB device, with four fans and two sensors
-attached, so I'm currently not able to implement querying  other stuff like LEDs
-or Aquastream(R), which can be connected to the device.
+This project started early 2010. Since then I first switched over to an
+aquaero(R) 5.0 (which marked the birth of
+[aerotools-ng](https://github.com/lynix/aerotools-ng)) and then back to air
+cooling with my latest rig.
 
-If you own such equipment and would like to support the development, please feel
-free to submit pull requests or fork the project. Hardware donations are also
-welcome, of course ;)
-
-My aquaero(R) is installed in an x86_64 box, so I'm reliant to your bug reports
-for i686, etc.
+Development of _aerotools_ is therefore considered discontinued, as I can no
+longer test anything on real hardware. However, pull requests are still welcome
+in case you wish to continue work on the project.
 
 
 ## BUGS / CONTACT
 
-Feel free to report any bugs you find using the 'issues' function on GitHub. If
+Feel free to report any bugs you find using the _Issues_ function on GitHub. If
 you wish to contact the author, you can drop him an email to lynix47@gmail.com.
-You might wish to use his GPG key, #4804CCA9 on keys.gnupg.net
+You might wish to use his GPG key, #4804CCA9 on keys.gnupg.net.
 
 
 ## LICENSE
